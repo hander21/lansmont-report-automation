@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lansmont Report Automation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.02em; }
+    header .badge {
+      background: #e74c3c;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 36px auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      padding: 28px 32px;
+    }
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eee;
+      color: #1a1a2e;
+    }
+
+    .field { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #d0d5dd;
+      border-radius: 6px;
+      font-size: 0.93rem;
+      font-family: "Consolas", "Courier New", monospace;
+      color: #1a1a2e;
+      transition: border-color .15s;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #3b7dd8;
+      box-shadow: 0 0 0 3px rgba(59,125,216,.15);
+    }
+    .hint {
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 9px 22px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    #btn-validate { background: #eef2ff; color: #3b5bdb; }
+    #btn-validate:hover:not(:disabled) { background: #dde4ff; }
+    #btn-generate { background: #1a1a2e; color: #fff; }
+    #btn-generate:hover:not(:disabled) { background: #2c2c4e; }
+
+    /* Status area */
+    #status-area { display: none; }
+
+    .status-box {
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .status-box.info    { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .status-box.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+    .status-box.error   { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+    .status-box.warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+
+    .status-title { font-weight: 700; margin-bottom: 6px; font-size: 0.95rem; }
+
+    /* Field preview table */
+    #field-preview { display: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+    th { font-weight: 600; color: #666; font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em; background: #fafafa; }
+    td:first-child { color: #555; font-weight: 500; width: 38%; }
+    td:last-child { font-family: "Consolas", "Courier New", monospace; color: #1a1a2e; }
+
+    /* Result card */
+    #result-area { display: none; }
+    .result-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .meta-item { background: #f8f9fa; border-radius: 6px; padding: 12px 14px; }
+    .meta-item .meta-label { font-size: 0.75rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .meta-item .meta-value { font-size: 0.95rem; font-weight: 600; color: #1a1a2e; margin-top: 2px; }
+
+    .download-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .dl-btn.docx { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .dl-btn.json { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .dl-btn:hover { filter: brightness(.95); }
+
+    .path-display {
+      font-family: "Consolas", monospace;
+      font-size: 0.78rem;
+      color: #666;
+      background: #f3f4f6;
+      border-radius: 4px;
+      padding: 6px 10px;
+      word-break: break-all;
+      margin-top: 14px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .confidentiality-notice {
+      font-size: 0.78rem;
+      color: #666;
+      background: #f9f9f9;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 10px 14px;
+      line-height: 1.5;
+    }
+    .confidentiality-notice strong { color: #1a1a2e; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Lansmont Report Automation</h1>
+  <span class="badge">DRAFT ONLY</span>
+</header>
+
+<main>
+
+  <!-- Input form -->
+  <div class="card">
+    <h2>1. Set Paths</h2>
+
+    <div class="field">
+      <label for="input_folder">Test Input Folder</label>
+      <input type="text" id="input_folder" value="{{ default_input }}"
+             placeholder="C:\Users\You\OneDrive\Incoming Tests\Customer_A_SAMPLE-123" />
+      <p class="hint">Folder containing Lansmont/, Photos/, and Notes/ subfolders.</p>
+    </div>
+
+    <div class="field">
+      <label for="output_folder">Output Folder</label>
+      <input type="text" id="output_folder" value="{{ default_output }}"
+             placeholder="C:\Users\You\OneDrive\Packaging Test Reports" />
+      <p class="hint">Root folder where organized reports are saved (e.g. your synced OneDrive path).</p>
+    </div>
+
+    <div class="field">
+      <label for="template_path">Report Template (.docx)</label>
+      <input type="text" id="template_path" value="{{ default_template }}"
+             placeholder="templates/fake_report_template.docx" />
+      <p class="hint">Path to the Word template file.</p>
+    </div>
+
+    <div class="btn-row">
+      <button id="btn-validate" onclick="runValidate()">Validate Inputs</button>
+      <button id="btn-generate" onclick="runGenerate()" disabled>Generate DRAFT Report</button>
+    </div>
+  </div>
+
+  <!-- Validation status -->
+  <div id="status-area" class="card">
+    <h2>2. Validation</h2>
+    <div id="status-box" class="status-box info">
+      <div class="status-title" id="status-title">Checking…</div>
+      <div id="status-body"></div>
+    </div>
+  </div>
+
+  <!-- Parsed field preview -->
+  <div id="field-preview" class="card">
+    <h2>Parsed Test Values</h2>
+    <p style="font-size:.82rem;color:#888;margin-bottom:14px;">
+      These values were read directly from your source file. Nothing was guessed or estimated.
+    </p>
+    <table>
+      <thead><tr><th>Field</th><th>Value</th></tr></thead>
+      <tbody id="fields-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Result -->
+  <div id="result-area" class="card">
+    <h2>3. Generated Report</h2>
+    <div class="result-meta" id="result-meta"></div>
+    <div class="download-row" id="download-row"></div>
+    <div class="path-display" id="output-path"></div>
+  </div>
+
+  <!-- Confidentiality notice -->
+  <div class="confidentiality-notice">
+    <strong>Confidentiality:</strong> This tool runs entirely on your local machine.
+    No files, test data, customer names, or photos are sent to any server or AI service.
+    Generated reports are marked <strong>DRAFT</strong> and must be reviewed by a qualified
+    engineer before distribution.
+  </div>
+
+</main>
+
+<script>
+  let lastValidated = false;
+
+  function getPaths() {
+    return {
+      input_folder:  document.getElementById("input_folder").value.trim(),
+      output_folder: document.getElementById("output_folder").value.trim(),
+      template_path: document.getElementById("template_path").value.trim(),
+    };
+  }
+
+  function showStatus(type, title, body) {
+    const area = document.getElementById("status-area");
+    const box  = document.getElementById("status-box");
+    const t    = document.getElementById("status-title");
+    const b    = document.getElementById("status-body");
+    area.style.display = "block";
+    box.className = "status-box " + type;
+    t.textContent = title;
+    b.innerHTML = body;
+  }
+
+  function showFields(fields) {
+    const preview = document.getElementById("field-preview");
+    const tbody   = document.getElementById("fields-tbody");
+    const keys = Object.keys(fields).filter(k => fields[k]);
+    if (keys.length === 0) { preview.style.display = "none"; return; }
+    tbody.innerHTML = keys.map(k =>
+      `<tr><td>${k}</td><td>${escHtml(fields[k])}</td></tr>`
+    ).join("");
+    preview.style.display = "block";
+  }
+
+  function hideResult() {
+    document.getElementById("result-area").style.display = "none";
+    document.getElementById("field-preview").style.display = "none";
+  }
+
+  async function runValidate() {
+    lastValidated = false;
+    document.getElementById("btn-generate").disabled = true;
+    hideResult();
+    showStatus("info", '<span class="spinner"></span> Validating…', "");
+
+    const res = await fetch("/api/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(getPaths()),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      let body = "";
+      if (data.warnings.length > 0) {
+        body = "<ul>" + data.warnings.map(w => `<li>${escHtml(w)}</li>`).join("") + "</ul>";
+        showStatus("warning", "Validation passed with warnings", body);
+      } else {
+        showStatus("success", "All checks passed — ready to generate", "");
+      }
+      showFields(data.fields);
+      document.getElementById("btn-generate").disabled = false;
+      lastValidated = true;
+    } else {
+      const body = "<ul>" + data.errors.map(e =>
+        `<li>${escHtml(e)}</li>`).join("") + "</ul>";
+      showStatus("error", `Validation failed (${data.errors.length} error${data.errors.length>1?"s":""})`, body);
+      document.getElementById("field-preview").style.display = "none";
+    }
+  }
+
+  async function runGenerate() {
+    if (!lastValidated) { await runValidate(); if (!lastValidated) return; }
+    document.getElementById("btn-generate").disabled = true;
+    showStatus("info", '<span class="spinner"></span> Generating DRAFT report…', "Please wait.");
+
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(getPaths()),
+    });
+    const data = await res.json();
+    document.getElementById("btn-generate").disabled = false;
+
+    if (data.ok) {
+      showStatus("success", "DRAFT report generated successfully", "");
+
+      // Meta grid
+      const meta = document.getElementById("result-meta");
+      meta.innerHTML = [
+        ["Customer",    data.customer_name],
+        ["Project",     data.project_number],
+        ["Test Date",   data.test_date],
+        ["Test Type",   data.test_type],
+      ].map(([label, val]) => `
+        <div class="meta-item">
+          <div class="meta-label">${label}</div>
+          <div class="meta-value">${escHtml(val||"")}</div>
+        </div>`).join("");
+
+      // Download buttons
+      const dl = document.getElementById("download-row");
+      dl.innerHTML = `
+        <a class="dl-btn docx" href="/api/download?path=${encodeURIComponent(data.report)}" download>
+          ⬇ Download DRAFT .docx
+        </a>
+        <a class="dl-btn json" href="/api/download?path=${encodeURIComponent(data.manifest)}" download>
+          ⬇ Download manifest.json
+        </a>`;
+
+      document.getElementById("output-path").textContent = "Saved to: " + data.output_folder;
+      document.getElementById("result-area").style.display = "block";
+
+      if (data.warnings.length > 0) {
+        showStatus("warning", "Report generated with warnings",
+          "<ul>" + data.warnings.map(w=>`<li>${escHtml(w)}</li>`).join("") + "</ul>");
+      }
+    } else {
+      showStatus("error", "Report generation failed", escHtml(data.error || "Unknown error"));
+    }
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+</script>
+</body>
+</html>
