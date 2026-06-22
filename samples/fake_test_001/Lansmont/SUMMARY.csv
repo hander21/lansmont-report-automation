@@ -1,0 +1,11 @@
+customer_name,Customer_A
+project_number,SAMPLE-123
+test_date,2026-06-22
+test_type,Vibration Table
+package_description,Demo packaging sample - corrugated box with foam inserts
+test_standard,Fake Test Standard ASTM D999 (Sample)
+peak_g,38.4
+duration,120 seconds
+axis,Z
+result,Pass
+technician_notes,Sample ran without anomalies. No visible damage observed during test.

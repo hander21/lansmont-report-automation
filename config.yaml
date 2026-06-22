@@ -1,0 +1,45 @@
+input_folder: "samples/fake_test_001"
+output_folder: "output/Packaging Test Reports"
+template_path: "templates/fake_report_template.docx"
+
+required_files:
+  summary_data: true
+  charts: true
+  pre_test_photos: true
+  post_test_photos: true
+
+photo_settings:
+  max_width_inches: 5.5
+  max_height_inches: 4.0
+
+chart_settings:
+  max_width_inches: 6.5
+  max_height_inches: 4.5
+
+report_settings:
+  mark_as_draft: true
+  export_pdf: false
+
+# Recognized file name patterns (case-insensitive prefix matching)
+file_patterns:
+  summary_prefixes:
+    - "SUMMARY"
+    - "TEST_SUMMARY"
+    - "LANSMONT_SUMMARY"
+  chart_prefixes:
+    - "CHART_"
+  pre_test_photo_prefixes:
+    - "PRE_"
+  post_test_photo_prefixes:
+    - "POST_"
+
+# Extensions accepted for each file type
+file_extensions:
+  summary: [".csv", ".xlsx", ".txt"]
+  charts: [".png", ".jpg", ".jpeg", ".pdf"]
+  photos: [".jpg", ".jpeg", ".png"]
+
+confidentiality:
+  allow_real_customer_data: false
+  allow_real_product_photos: false
+  allow_real_company_files: false

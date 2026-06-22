@@ -1,0 +1,10 @@
+Technician Notes - FAKE SAMPLE
+===============================
+Project: SAMPLE-123
+Technician: Demo Tech (fake)
+Date: 2026-06-22
+
+Pre-test condition: Package appeared undamaged. Labels intact.
+Test observations: Vibration test ran for full duration. No unusual sounds.
+Post-test condition: Minor scuff on bottom edge. Contents undamaged.
+Additional notes: This is a synthetic sample note for development purposes only.

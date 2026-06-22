@@ -1,0 +1,12 @@
+FAKE RAW DATA PLACEHOLDER
+=========================
+This file represents a Lansmont raw data export.
+In production, this would be the actual binary or CSV data file
+exported directly from the Lansmont test system.
+
+Do NOT replace this file with real Lansmont raw data during development.
+Real raw data must remain on the company-approved local machine.
+
+Project: SAMPLE-123
+Test Type: Vibration Table (fake)
+Date: 2026-06-22 (fake)
