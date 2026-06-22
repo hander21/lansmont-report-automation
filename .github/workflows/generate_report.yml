@@ -1,0 +1,52 @@
+name: Generate Draft Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_folder:
+        description: "Input test folder (relative to repo root)"
+        required: false
+        default: "samples/fake_test_001"
+      log_level:
+        description: "Log verbosity"
+        required: false
+        default: "INFO"
+        type: choice
+        options:
+          - INFO
+          - DEBUG
+          - WARNING
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests first
+        run: pytest tests/ -v
+
+      - name: Generate DRAFT report
+        run: |
+          python -m src.main \
+            --input "${{ github.event.inputs.input_folder }}" \
+            --log-level "${{ github.event.inputs.log_level }}"
+
+      - name: Upload generated report
+        uses: actions/upload-artifact@v4
+        with:
+          name: draft-report
+          path: output/
+          retention-days: 30
+          if-no-files-found: error
