@@ -1,0 +1,6 @@
+duration_minutes,60
+psd_profile,ISTA 3B Vibration Profile (Sample)
+peak_g,0.54
+frequency_range_hz,3 - 200
+result,Pass
+notes,Package remained intact throughout vibration sequence. No movement or shifting observed.

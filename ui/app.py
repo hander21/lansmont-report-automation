@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.config import load_config
 from src.validate_input import validate_input_folder, validate_template, validate_parsed_fields, ValidationError
-from src.parse_lansmont import parse_summary, ParseError
+from src.parse_lansmont import parse_all, ParseError
 from src.organize_files import build_output_structure, copy_files
 from src.generate_report import generate_draft_report
 from src.audit_manifest import build_manifest, write_manifest
@@ -77,7 +77,8 @@ def upload():
     try:
         validate_template(TEMPLATE_PATH)
         discovered = validate_input_folder(input_folder, cfg)
-        parsed = parse_summary(discovered["summary_file"])
+        lansmont_folder = discovered.get("lansmont_folder") or (input_folder / "Lansmont")
+        parsed = parse_all(lansmont_folder, discovered["summary_file"])
         validate_parsed_fields(parsed)
         output_paths = build_output_structure(parsed, cfg)
         copied = copy_files(discovered, output_paths)
@@ -102,6 +103,9 @@ def upload():
             "warnings": discovered.get("warnings", []),
         }
 
+        # Build a flat dict of displayable fields (exclude private _keys)
+        display_fields = {k: v for k, v in parsed.items()
+                         if not k.startswith("_") and isinstance(v, str)}
         return jsonify({
             "ok": True,
             "customer_name": parsed.get("customer_name"),
@@ -110,6 +114,7 @@ def upload():
             "test_type": parsed.get("test_type"),
             "report_name": report_path.name,
             "warnings": discovered.get("warnings", []),
+            "fields": display_fields,
         })
 
     except (ValidationError, ParseError) as e:

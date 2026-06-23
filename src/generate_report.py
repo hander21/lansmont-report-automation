@@ -1,111 +1,145 @@
-"""Generates a draft Word report from the template with values and images inserted."""
+"""
+Generates a draft Word report from the template using table-cell token replacement.
+
+Text tokens   {{ field_name }}   are replaced with parsed values.
+Image tokens  [[ PHOTO:slot ]]   and  [[ CHART:slot ]]  are replaced with images.
+"""
 
 import logging
+import re
 from pathlib import Path
 
 from docx import Document
-from docx.shared import Inches, Pt, RGBColor
+from docx.shared import Inches
 
 from src.insert_images import get_fit_dimensions
 from src.utils import sanitize_for_filename
 
 logger = logging.getLogger(__name__)
 
-# Placeholder tokens used in the template
-PLACEHOLDER_FIELDS = [
-    "customer_name",
-    "project_number",
-    "test_date",
-    "test_type",
-    "package_description",
-    "test_standard",
-    "peak_g",
-    "duration",
-    "axis",
-    "result",
-    "technician_notes",
-    "conclusion",
-    "draft_watermark",
-]
-
-IMAGE_PLACEHOLDERS = {
-    "{{ vibration_chart }}": "vibration_chart",
-    "{{ incline_impact_chart }}": "incline_impact_chart",
-    "{{ pre_test_photo_1 }}": "pre_test_photo_1",
-    "{{ pre_test_photo_2 }}": "pre_test_photo_2",
-    "{{ post_test_photo_1 }}": "post_test_photo_1",
-    "{{ post_test_photo_2 }}": "post_test_photo_2",
-}
+_TEXT_TOKEN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+_IMAGE_TOKEN = re.compile(r"\[\[\s*(PHOTO|CHART):(\S+?)\s*\]\]")
 
 
 def build_template_context(parsed: dict, cfg: dict) -> dict:
-    """Assemble the text context dict from parsed summary values."""
-    ctx = {}
-    for field in PLACEHOLDER_FIELDS:
-        if field == "draft_watermark":
-            ctx[field] = "** DRAFT — NOT FOR DISTRIBUTION **"
-        elif field == "conclusion":
-            ctx[field] = parsed.get(
-                "conclusion",
-                "DRAFT CONCLUSION: Review all sections before finalizing.",
-            )
-        elif field == "technician_notes":
-            ctx[field] = parsed.get("technician_notes", "(No technician notes provided)")
-        else:
-            ctx[field] = parsed.get(field, "")
+    """Return a copy of parsed values plus the draft watermark."""
+    ctx = dict(parsed)
+    ctx["draft_watermark"] = "** DRAFT — NOT FOR DISTRIBUTION **"
     return ctx
 
 
-def _replace_text_in_paragraph(paragraph, placeholder: str, replacement: str) -> None:
-    """Replace placeholder text in a paragraph while preserving run formatting."""
-    full_text = "".join(r.text for r in paragraph.runs)
-    if placeholder not in full_text:
-        return
+def _build_image_map(discovered: dict, output_paths: dict, cfg: dict) -> dict:
+    """
+    Map slot names (lower-case, no separators) to resolved image Paths.
 
-    new_text = full_text.replace(placeholder, replacement)
+    Photo slots:  pre_test_1, pre_test_2, accel_1, accel_2, post_test_1, post_test_2
+                  seq2_1, seq2_2, seq3_1, seq3_2, seq4_1, seq4_2, seq6_1, seq6_2, seq7_1, seq7_2
+    Chart slots:  seq2_tip_over, seq3_rot_drop_1_a, seq3_rot_drop_1_b, …, seq5_vibration
+    """
+    image_map: dict[str, Path] = {}
 
-    # Clear all runs and put the text into the first one
-    for i, run in enumerate(paragraph.runs):
-        run.text = new_text if i == 0 else ""
-
-
-def _assign_charts(discovered: dict, output_paths: dict) -> dict:
-    """Map logical chart names to their output-folder file paths."""
-    charts_out = {}
-    chart_files = [
-        output_paths["charts"] / f
-        for f in output_paths["charts"].iterdir()
-        if output_paths["charts"].is_dir()
-    ] if output_paths["charts"].exists() else []
-
-    # Re-read from the charts output folder
-    chart_paths = sorted(output_paths["charts"].glob("*")) if output_paths["charts"].exists() else []
-
-    for cp in chart_paths:
-        name_lower = cp.name.lower()
-        if "vibration" in name_lower:
-            charts_out.setdefault("vibration_chart", cp)
-        elif "incline" in name_lower or "impact" in name_lower:
-            charts_out.setdefault("incline_impact_chart", cp)
-        else:
-            logger.warning("Chart file not mapped to a placeholder: %s", cp.name)
-
-    return charts_out
-
-
-def _assign_photos(output_paths: dict) -> dict:
-    """Map logical photo slot names to file paths from output folders."""
-    photos = {}
-
+    # ── Pre-test photos ──
     pre_photos = sorted(output_paths["photos_pre"].glob("*")) if output_paths["photos_pre"].exists() else []
-    for i, p in enumerate(pre_photos[:2], start=1):
-        photos[f"pre_test_photo_{i}"] = p
+    for i, p in enumerate(pre_photos, start=1):
+        image_map[f"pre_test_{i}"] = p
 
+    # ── Post-test photos ──
     post_photos = sorted(output_paths["photos_post"].glob("*")) if output_paths["photos_post"].exists() else []
-    for i, p in enumerate(post_photos[:2], start=1):
-        photos[f"post_test_photo_{i}"] = p
+    for i, p in enumerate(post_photos, start=1):
+        image_map[f"post_test_{i}"] = p
 
-    return photos
+    # ── Accelerometer photos ──
+    accel_dir = output_paths.get("photos_accel")
+    if accel_dir and accel_dir.exists():
+        for i, p in enumerate(sorted(accel_dir.glob("*")), start=1):
+            image_map[f"accel_{i}"] = p
+
+    # ── Sequence photos ──
+    seq_dirs = {
+        "seq2": output_paths.get("photos_seq2"),
+        "seq3": output_paths.get("photos_seq3"),
+        "seq4": output_paths.get("photos_seq4"),
+        "seq6": output_paths.get("photos_seq6"),
+        "seq7": output_paths.get("photos_seq7"),
+    }
+    for prefix, d in seq_dirs.items():
+        if d and d.exists():
+            for i, p in enumerate(sorted(d.glob("*")), start=1):
+                image_map[f"{prefix}_{i}"] = p
+
+    # ── Charts ──
+    charts_dir = output_paths.get("charts")
+    if charts_dir and charts_dir.exists():
+        for chart_path in sorted(charts_dir.glob("*")):
+            slot = _chart_slot_name(chart_path.name)
+            if slot:
+                image_map[slot] = chart_path
+            else:
+                logger.warning("Chart not matched to any slot: %s", chart_path.name)
+
+    return image_map
+
+
+def _chart_slot_name(filename: str) -> str | None:
+    """Derive a slot key from a chart filename, e.g. CHART_SEQ3_ROT_DROP_1_A.png → seq3_rot_drop_1_a"""
+    name = filename.upper()
+    if not name.startswith("CHART_"):
+        return None
+    stem = name[len("CHART_"):].replace(".PNG", "").replace(".JPG", "").replace(".JPEG", "")
+    return stem.lower()
+
+
+def _replace_text_in_cell(cell, ctx: dict) -> list[str]:
+    """Replace all {{ field }} tokens in a cell. Returns list of replaced field names."""
+    replaced = []
+    for para in cell.paragraphs:
+        full_text = "".join(r.text for r in para.runs)
+        if "{{" not in full_text:
+            continue
+        new_text = full_text
+        for match in _TEXT_TOKEN.finditer(full_text):
+            field = match.group(1)
+            if field in ctx:
+                new_text = new_text.replace(match.group(0), str(ctx[field]))
+                replaced.append(field)
+        if new_text != full_text:
+            for i, run in enumerate(para.runs):
+                run.text = new_text if i == 0 else ""
+    return replaced
+
+
+def _replace_image_in_cell(cell, image_map: dict, chart_cfg: dict, photo_cfg: dict) -> dict | None:
+    """
+    If a cell contains [[ PHOTO:slot ]] or [[ CHART:slot ]], replace with the image.
+    Returns an info dict if an image was inserted, else None.
+    """
+    for para in cell.paragraphs:
+        full_text = "".join(r.text for r in para.runs)
+        if "[[" not in full_text:
+            continue
+        m = _IMAGE_TOKEN.search(full_text)
+        if not m:
+            continue
+        kind, slot = m.group(1), m.group(2).lower()
+        image_path = image_map.get(slot)
+
+        if not image_path or not image_path.exists():
+            logger.warning("Image slot '%s:%s' has no matching file.", kind, slot)
+            return None
+
+        is_chart = kind == "CHART"
+        max_w = chart_cfg["max_width_inches"] if is_chart else photo_cfg["max_width_inches"]
+        max_h = chart_cfg["max_height_inches"] if is_chart else photo_cfg["max_height_inches"]
+        w, _ = get_fit_dimensions(image_path, max_w, max_h)
+
+        # Clear all runs, then insert picture into the first run
+        for run in para.runs:
+            run.text = ""
+        para.runs[0].add_picture(str(image_path), width=Inches(w))
+
+        return {"kind": kind, "slot": slot, "file": image_path.name}
+
+    return None
 
 
 def generate_draft_report(
@@ -113,62 +147,34 @@ def generate_draft_report(
     discovered: dict,
     output_paths: dict,
     cfg: dict,
-) -> Path:
+) -> tuple[Path, list]:
     """
-    Build the draft DOCX report from the template.
-    Returns the path to the generated file.
+    Open the .docx template, replace all tokens in table cells with values and images,
+    and save the draft report. Returns (report_path, inserted_images).
     """
     template_path = Path(cfg["template_path"])
     doc = Document(str(template_path))
 
     ctx = build_template_context(parsed, cfg)
-    charts = _assign_charts(discovered, output_paths)
-    photos = _assign_photos(output_paths)
-    image_map = {**charts, **photos}
+    image_map = _build_image_map(discovered, output_paths, cfg)
 
     chart_cfg = cfg["chart_settings"]
     photo_cfg = cfg["photo_settings"]
 
-    inserted_images = []
-    replaced_text_placeholders = set()
+    inserted_images: list[dict] = []
+    replaced_text_fields: set[str] = set()
 
-    for para in doc.paragraphs:
-        full_text = "".join(r.text for r in para.runs)
-
-        # Try image placeholders first
-        matched_image = False
-        for token, slot_name in IMAGE_PLACEHOLDERS.items():
-            if token in full_text:
-                image_path = image_map.get(slot_name)
-                if image_path and Path(image_path).exists():
-                    is_chart = "chart" in slot_name
-                    max_w = chart_cfg["max_width_inches"] if is_chart else photo_cfg["max_width_inches"]
-                    max_h = chart_cfg["max_height_inches"] if is_chart else photo_cfg["max_height_inches"]
-                    w, _ = get_fit_dimensions(image_path, max_w, max_h)
-                    # Clear the paragraph and insert image
-                    for run in para.runs:
-                        run.text = ""
-                    para.runs[0].add_picture(str(image_path), width=Inches(w))
-                    logger.info("Inserted image for placeholder '%s': %s", token, image_path.name)
-                    inserted_images.append({"placeholder": token, "file": image_path.name})
-                else:
-                    logger.warning(
-                        "Image placeholder '%s' found but no image available for slot '%s'.",
-                        token,
-                        slot_name,
-                    )
-                matched_image = True
-                break
-
-        if matched_image:
-            continue
-
-        # Text field replacements
-        for field, value in ctx.items():
-            token = f"{{{{ {field} }}}}"
-            if token in full_text:
-                _replace_text_in_paragraph(para, token, str(value))
-                replaced_text_placeholders.add(field)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                # Try image replacement first
+                result = _replace_image_in_cell(cell, image_map, chart_cfg, photo_cfg)
+                if result:
+                    inserted_images.append(result)
+                    continue
+                # Then text replacement
+                fields = _replace_text_in_cell(cell, ctx)
+                replaced_text_fields.update(fields)
 
     # Build output filename
     customer = sanitize_for_filename(parsed["customer_name"])
@@ -180,5 +186,10 @@ def generate_draft_report(
 
     doc.save(str(output_file))
     logger.info("Draft report saved: %s", output_file)
+    logger.info(
+        "Replaced %d text field(s), inserted %d image(s).",
+        len(replaced_text_fields),
+        len(inserted_images),
+    )
 
     return output_file, inserted_images

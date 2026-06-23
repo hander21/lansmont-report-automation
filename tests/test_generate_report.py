@@ -1,4 +1,4 @@
-"""End-to-end test for report generation using the fake sample folder."""
+"""End-to-end test for ISTA 3B report generation using the fake sample folder."""
 
 import json
 import pytest
@@ -6,13 +6,14 @@ from pathlib import Path
 
 from src.config import load_config
 from src.validate_input import validate_input_folder, validate_parsed_fields
-from src.parse_lansmont import parse_summary
+from src.parse_lansmont import parse_all
 from src.organize_files import build_output_structure, copy_files
 from src.generate_report import generate_draft_report, build_template_context
 from src.audit_manifest import build_manifest, write_manifest
 
 CONFIG_PATH = Path("config.yaml")
 SAMPLE_FOLDER = Path("samples/fake_test_001")
+LANSMONT_DIR = SAMPLE_FOLDER / "Lansmont"
 
 
 @pytest.fixture
@@ -24,9 +25,9 @@ def cfg(tmp_path):
 
 @pytest.fixture
 def pipeline(cfg):
-    """Run the full pipeline and return all artifacts."""
+    """Run the full ISTA 3B pipeline and return all artifacts."""
     discovered = validate_input_folder(SAMPLE_FOLDER, cfg)
-    parsed = parse_summary(discovered["summary_file"])
+    parsed = parse_all(LANSMONT_DIR, discovered["summary_file"])
     validate_parsed_fields(parsed)
     output_paths = build_output_structure(parsed, cfg)
     copied = copy_files(discovered, output_paths)
@@ -67,16 +68,38 @@ class TestReportGeneration:
         assert "SAMPLE-123" in pipeline["report_path"].name
 
     def test_report_filename_contains_customer(self, pipeline):
-        assert "Customer" in pipeline["report_path"].name or "CustomerA" in pipeline["report_path"].name
+        name = pipeline["report_path"].name
+        assert "Customer" in name or "CustomerA" in name
 
     def test_charts_copied_to_output(self, pipeline):
-        assert len(pipeline["copied"]["charts"]) >= 2
+        assert len(pipeline["copied"]["charts"]) >= 5
 
     def test_pre_photos_copied(self, pipeline):
         assert len(pipeline["copied"]["pre_test_photos"]) >= 1
 
     def test_post_photos_copied(self, pipeline):
         assert len(pipeline["copied"]["post_test_photos"]) >= 1
+
+    def test_accel_photos_copied(self, pipeline):
+        assert len(pipeline["copied"]["accel_photos"]) >= 1
+
+    def test_seq_photos_copied(self, pipeline):
+        assert "Seq2_Tip_Over" in pipeline["copied"]["seq_photos"]
+        assert len(pipeline["copied"]["seq_photos"]["Seq2_Tip_Over"]) >= 1
+
+    def test_images_inserted_in_report(self, pipeline):
+        assert len(pipeline["inserted_images"]) >= 1
+
+    def test_parsed_has_sequence_fields(self, pipeline):
+        parsed = pipeline["parsed"]
+        assert "seq2_result" in parsed
+        assert parsed["seq2_result"] == "Pass"
+        assert "seq5_peak_g" in parsed
+
+    def test_parsed_has_equipment_rows(self, pipeline):
+        parsed = pipeline["parsed"]
+        assert "_equipment_rows" in parsed
+        assert len(parsed["_equipment_rows"]) >= 3
 
 
 class TestManifest:
@@ -105,9 +128,9 @@ class TestManifest:
 
     def test_manifest_values_have_source_traceability(self, pipeline):
         for field, entry in pipeline["manifest"]["values_used"].items():
-            assert "source_file" in entry, f"No source_file for field: {field}"
-            assert "source_field" in entry, f"No source_field for field: {field}"
-            assert "value" in entry, f"No value for field: {field}"
+            assert "source_file" in entry, f"No source_file for: {field}"
+            assert "source_field" in entry, f"No source_field for: {field}"
+            assert "value" in entry, f"No value for: {field}"
 
     def test_manifest_records_correct_customer(self, pipeline):
         assert pipeline["manifest"]["customer_name"] == "Customer_A"
@@ -117,27 +140,53 @@ class TestManifest:
 
     def test_manifest_generated_at_is_present(self, pipeline):
         assert "generated_at" in pipeline["manifest"]
-        assert pipeline["manifest"]["generated_at"]  # not empty
+        assert pipeline["manifest"]["generated_at"]
+
+    def test_manifest_includes_equipment_values(self, pipeline):
+        values = pipeline["manifest"]["values_used"]
+        assert any(k.startswith("equip_") for k in values)
+
+    def test_manifest_includes_sequence_values(self, pipeline):
+        values = pipeline["manifest"]["values_used"]
+        assert any("seq2_tip_over" in k.lower() or "seq2" in k for k in values)
 
 
 class TestTemplateContext:
     def test_draft_watermark_present(self):
         cfg = load_config(CONFIG_PATH)
-        parsed = {"customer_name": "Customer_A", "project_number": "SAMPLE-123",
-                  "test_date": "2026-06-22", "test_type": "Vibration Table",
-                  "package_description": "Demo", "test_standard": "Std-1",
-                  "peak_g": "38.4", "duration": "120 seconds",
-                  "axis": "Z", "result": "Pass"}
+        parsed = {
+            "customer_name": "Customer_A",
+            "project_number": "SAMPLE-123",
+            "test_date": "2026-06-22",
+            "test_type": "ISTA 3B",
+            "product_name": "Demo",
+            "packaging_description": "Demo box",
+            "weight_lbs": "12.5",
+            "dimensions_lwh": "18x12x10",
+            "quantity": "6",
+            "test_standard": "ISTA 3B-2021",
+            "conclusion": "Pass",
+        }
         ctx = build_template_context(parsed, cfg)
         assert "DRAFT" in ctx["draft_watermark"]
 
     def test_all_parsed_values_in_context(self):
         cfg = load_config(CONFIG_PATH)
-        parsed = {"customer_name": "Customer_A", "project_number": "SAMPLE-123",
-                  "test_date": "2026-06-22", "test_type": "Vibration Table",
-                  "package_description": "Demo", "test_standard": "Std-1",
-                  "peak_g": "38.4", "duration": "120 seconds",
-                  "axis": "Z", "result": "Pass"}
+        parsed = {
+            "customer_name": "Customer_A",
+            "project_number": "SAMPLE-123",
+            "test_date": "2026-06-22",
+            "test_type": "ISTA 3B",
+            "product_name": "Demo Product",
+            "packaging_description": "Demo box",
+            "weight_lbs": "12.5",
+            "dimensions_lwh": "18x12x10",
+            "quantity": "6",
+            "test_standard": "ISTA 3B-2021",
+            "conclusion": "Pass",
+            "seq2_result": "Pass",
+        }
         ctx = build_template_context(parsed, cfg)
         assert ctx["customer_name"] == "Customer_A"
-        assert ctx["peak_g"] == "38.4"
+        assert ctx["weight_lbs"] == "12.5"
+        assert ctx["seq2_result"] == "Pass"

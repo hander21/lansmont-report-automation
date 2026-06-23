@@ -20,7 +20,7 @@ from pathlib import Path
 from src.config import load_config
 from src.utils import setup_logging
 from src.validate_input import validate_input_folder, validate_template, validate_parsed_fields, ValidationError
-from src.parse_lansmont import parse_summary, ParseError
+from src.parse_lansmont import parse_summary, parse_all, ParseError
 from src.organize_files import build_output_structure, copy_files
 from src.generate_report import generate_draft_report
 from src.audit_manifest import build_manifest, write_manifest
@@ -88,13 +88,14 @@ def run(argv=None) -> int:
         logger.error("INPUT VALIDATION FAILED:\n%s", e)
         return 1
 
-    # Step 3: Parse summary data
+    # Step 3: Parse all input data (summary + equipment + sequences)
     if not discovered.get("summary_file"):
         logger.error("No summary file was discovered. Cannot continue.")
         return 1
 
     try:
-        parsed = parse_summary(discovered["summary_file"])
+        lansmont_folder = discovered.get("lansmont_folder") or (input_folder / "Lansmont")
+        parsed = parse_all(lansmont_folder, discovered["summary_file"])
     except ParseError as e:
         logger.error("PARSE ERROR: %s", e)
         return 1

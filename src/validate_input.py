@@ -1,24 +1,22 @@
-"""Validates that all required input files exist before report generation begins."""
+"""Validates that all required ISTA 3B input files exist before report generation begins."""
 
 import logging
 from pathlib import Path
 
 from src.utils import find_files_by_prefix
+from src.parse_lansmont import REQUIRED_SUMMARY_FIELDS
 
 logger = logging.getLogger(__name__)
 
-# Fields that must be present and non-empty in the parsed summary
-REQUIRED_SUMMARY_FIELDS = [
-    "customer_name",
-    "project_number",
-    "test_date",
-    "test_type",
-    "package_description",
-    "test_standard",
-    "peak_g",
-    "duration",
-    "axis",
-    "result",
+# Photo subfolders expected for ISTA 3B (sequence folders are optional — produce warnings)
+REQUIRED_PHOTO_FOLDERS = ["Pre-Test", "Post-Test"]
+OPTIONAL_PHOTO_FOLDERS = [
+    "Accelerometer",
+    "Seq2_Tip_Over",
+    "Seq3_Rot_Drop_1",
+    "Seq4_Incline_1",
+    "Seq6_Rot_Drop_2",
+    "Seq7_Incline_2",
 ]
 
 
@@ -26,14 +24,11 @@ class ValidationError(Exception):
     """Raised when required inputs are missing or invalid."""
 
 
-class ValidationWarning(Exception):
-    """Raised for non-fatal issues that should be logged but not halt execution."""
-
-
 def validate_input_folder(input_folder: Path, cfg: dict) -> dict:
     """
-    Validate the input folder structure. Returns a dict of discovered file paths.
-    Raises ValidationError on any hard failure.
+    Validate the ISTA 3B input folder structure.
+    Returns a dict of discovered file paths and lists.
+    Raises ValidationError on any hard failure; collects warnings for soft issues.
     """
     errors = []
     warnings = []
@@ -45,8 +40,6 @@ def validate_input_folder(input_folder: Path, cfg: dict) -> dict:
 
     lansmont_folder = input_folder / "Lansmont"
     photos_folder = input_folder / "Photos"
-    pre_test_folder = photos_folder / "Pre-Test"
-    post_test_folder = photos_folder / "Post-Test"
 
     file_patterns = cfg["file_patterns"]
     file_exts = cfg["file_extensions"]
@@ -57,14 +50,17 @@ def validate_input_folder(input_folder: Path, cfg: dict) -> dict:
         "charts": [],
         "pre_test_photos": [],
         "post_test_photos": [],
+        "accel_photos": [],
+        "seq_photos": {},        # stem → [Path, ...]
         "lansmont_folder": lansmont_folder if lansmont_folder.exists() else None,
     }
 
-    # --- Summary file ---
-    if required.get("summary_data", True):
-        if not lansmont_folder.exists():
-            errors.append(f"Lansmont folder not found: {lansmont_folder}")
-        else:
+    # ── Lansmont folder ──
+    if not lansmont_folder.exists():
+        errors.append(f"Lansmont folder not found: {lansmont_folder}")
+    else:
+        # Summary file
+        if required.get("summary_data", True):
             summary_files = find_files_by_prefix(
                 lansmont_folder,
                 file_patterns["summary_prefixes"],
@@ -73,20 +69,19 @@ def validate_input_folder(input_folder: Path, cfg: dict) -> dict:
             if not summary_files:
                 errors.append(
                     f"No summary file found in {lansmont_folder}. "
-                    f"Expected a file starting with one of: {file_patterns['summary_prefixes']}"
+                    f"Expected a file starting with: {file_patterns['summary_prefixes']}"
                 )
             elif len(summary_files) > 1:
                 errors.append(
                     f"Multiple summary files found in {lansmont_folder}: "
-                    f"{[f.name for f in summary_files]}. Remove duplicates or rename one."
+                    f"{[f.name for f in summary_files]}. Remove duplicates."
                 )
             else:
                 discovered["summary_file"] = summary_files[0]
                 logger.info("Summary file found: %s", summary_files[0].name)
 
-    # --- Charts ---
-    if required.get("charts", True):
-        if lansmont_folder.exists():
+        # Charts
+        if required.get("charts", True):
             charts = find_files_by_prefix(
                 lansmont_folder,
                 file_patterns["chart_prefixes"],
@@ -101,74 +96,58 @@ def validate_input_folder(input_folder: Path, cfg: dict) -> dict:
                 discovered["charts"] = charts
                 logger.info("Charts found: %s", [f.name for f in charts])
 
-    # --- Pre-test photos ---
-    if required.get("pre_test_photos", True):
-        if not pre_test_folder.exists():
-            errors.append(f"Pre-Test photo folder not found: {pre_test_folder}")
-        else:
-            pre_photos = find_files_by_prefix(
-                pre_test_folder,
-                file_patterns["pre_test_photo_prefixes"],
-                file_exts["photos"],
-            )
-            if not pre_photos:
-                errors.append(
-                    f"No pre-test photos found in {pre_test_folder}. "
-                    f"Expected files starting with: {file_patterns['pre_test_photo_prefixes']}"
-                )
-            else:
-                discovered["pre_test_photos"] = pre_photos
-                logger.info("Pre-test photos found: %s", [f.name for f in pre_photos])
+    # ── Photos folder ──
+    if not photos_folder.exists():
+        errors.append(f"Photos folder not found: {photos_folder}")
     else:
-        if pre_test_folder.exists():
-            pre_photos = find_files_by_prefix(
-                pre_test_folder,
-                file_patterns["pre_test_photo_prefixes"],
-                file_exts["photos"],
-            )
-            if not pre_photos:
-                warnings.append("Pre-test photos not required by config but folder is empty.")
-            else:
-                discovered["pre_test_photos"] = pre_photos
+        # Required photo folders
+        for folder_name in REQUIRED_PHOTO_FOLDERS:
+            folder = photos_folder / folder_name
+            prefix_key = "pre_test_photo_prefixes" if "Pre" in folder_name else "post_test_photo_prefixes"
+            discovered_key = "pre_test_photos" if "Pre" in folder_name else "post_test_photos"
 
-    # --- Post-test photos ---
-    if required.get("post_test_photos", True):
-        if not post_test_folder.exists():
-            errors.append(f"Post-Test photo folder not found: {post_test_folder}")
-        else:
-            post_photos = find_files_by_prefix(
-                post_test_folder,
-                file_patterns["post_test_photo_prefixes"],
-                file_exts["photos"],
-            )
-            if not post_photos:
-                errors.append(
-                    f"No post-test photos found in {post_test_folder}. "
-                    f"Expected files starting with: {file_patterns['post_test_photo_prefixes']}"
-                )
+            if required.get(folder_name.lower().replace("-", "_"), True):
+                if not folder.exists():
+                    errors.append(f"{folder_name} photo folder not found: {folder}")
+                else:
+                    photos = find_files_by_prefix(
+                        folder, file_patterns[prefix_key], file_exts["photos"]
+                    )
+                    if not photos:
+                        errors.append(
+                            f"No photos found in {folder}. "
+                            f"Expected files starting with: {file_patterns[prefix_key]}"
+                        )
+                    else:
+                        discovered[discovered_key] = photos
+                        logger.info("%s photos found: %d", folder_name, len(photos))
+
+        # Optional sequence/accel photo folders
+        for folder_name in OPTIONAL_PHOTO_FOLDERS:
+            folder = photos_folder / folder_name
+            if not folder.exists():
+                warnings.append(f"Optional photo folder not found (will skip): {folder_name}/")
+                continue
+            photos = [p for p in sorted(folder.iterdir())
+                      if p.is_file() and p.suffix.lower() in file_exts["photos"]]
+            if not photos:
+                warnings.append(f"No photos found in optional folder {folder_name}/ — skipping.")
             else:
-                discovered["post_test_photos"] = post_photos
-                logger.info("Post-test photos found: %s", [f.name for f in post_photos])
-    else:
-        if post_test_folder.exists():
-            post_photos = find_files_by_prefix(
-                post_test_folder,
-                file_patterns["post_test_photo_prefixes"],
-                file_exts["photos"],
-            )
-            if not post_photos:
-                warnings.append("Post-test photos not required by config but folder is empty.")
-            else:
-                discovered["post_test_photos"] = post_photos
+                if folder_name == "Accelerometer":
+                    discovered["accel_photos"] = photos
+                    logger.info("Accelerometer photos found: %d", len(photos))
+                else:
+                    discovered["seq_photos"][folder_name] = photos
+                    logger.info("%s photos found: %d", folder_name, len(photos))
 
     for w in warnings:
         logger.warning("VALIDATION WARNING: %s", w)
     discovered["warnings"] = warnings
 
     if errors:
-        error_block = "\n  - ".join(errors)
         raise ValidationError(
-            f"Input validation failed with {len(errors)} error(s):\n  - {error_block}"
+            f"Input validation failed with {len(errors)} error(s):\n  - "
+            + "\n  - ".join(errors)
         )
 
     logger.info("Input validation passed.")
@@ -186,9 +165,9 @@ def validate_template(template_path: Path) -> None:
 
 
 def validate_parsed_fields(parsed: dict) -> None:
-    """Ensure all required summary fields are present and non-empty."""
+    """Ensure all required SUMMARY fields are present and non-empty in the parsed dict."""
     missing = []
-    for field in REQUIRED_SUMMARY_FIELDS:
+    for field in sorted(REQUIRED_SUMMARY_FIELDS):
         value = parsed.get(field)
         if value is None or str(value).strip() == "":
             missing.append(field)

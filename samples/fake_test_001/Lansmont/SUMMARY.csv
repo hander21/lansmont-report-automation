@@ -1,11 +1,13 @@
 customer_name,Customer_A
 project_number,SAMPLE-123
 test_date,2026-06-22
-test_type,Vibration Table
-package_description,Demo packaging sample - corrugated box with foam inserts
-test_standard,Fake Test Standard ASTM D999 (Sample)
-peak_g,38.4
-duration,120 seconds
-axis,Z
-result,Pass
-technician_notes,Sample ran without anomalies. No visible damage observed during test.
+test_type,ISTA 3B
+test_standard,ISTA 3B-2021 (Fake Sample Data)
+product_name,Demo Product Sample
+packaging_description,Demo packaging sample - double-wall corrugated box with EPE foam inserts
+weight_lbs,12.5
+dimensions_lwh,18 x 12 x 10 inches
+quantity,6
+key_takeaways,Package performed within acceptable limits for all test sequences. No product damage was observed during any sequence.
+conclusion,All test sequences resulted in PASS. Package design meets ISTA 3B-2021 requirements for the stated distribution environment.
+technician_notes,Sample ran without anomalies. All equipment was within calibration dates at time of testing.

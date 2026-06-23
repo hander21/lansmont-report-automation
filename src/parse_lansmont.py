@@ -1,4 +1,4 @@
-"""Parses Lansmont summary files (CSV, XLSX, TXT) into a flat dict of test values."""
+"""Parses all Lansmont ISTA 3B input files into a structured data dict."""
 
 import logging
 from pathlib import Path
@@ -7,61 +7,110 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Every field must appear in the source file.  The tool never fills in defaults.
-EXPECTED_FIELDS = {
+# Fields that must be present and non-empty in SUMMARY.csv
+REQUIRED_SUMMARY_FIELDS = {
     "customer_name",
     "project_number",
     "test_date",
     "test_type",
-    "package_description",
     "test_standard",
-    "peak_g",
-    "duration",
-    "axis",
-    "result",
+    "product_name",
+    "packaging_description",
+    "weight_lbs",
+    "dimensions_lwh",
+    "quantity",
+    "conclusion",
 }
 
-OPTIONAL_FIELDS = {"technician_notes", "conclusion"}
+OPTIONAL_SUMMARY_FIELDS = {"key_takeaways", "technician_notes"}
+
+# Known sequence file stems → prefix used in flattened keys
+SEQUENCE_MAP = {
+    "SEQ2_TIP_OVER": "seq2",
+    "SEQ3_ROT_DROP_1": "seq3",
+    "SEQ4_INCLINE_1": "seq4",
+    "SEQ5_VIBRATION": "seq5",
+    "SEQ6_ROT_DROP_2": "seq6",
+    "SEQ7_INCLINE_2": "seq7",
+}
+
+EQUIPMENT_COLUMNS = ["equipment", "make", "model", "serial", "calibration_date"]
 
 
 class ParseError(Exception):
-    """Raised when the summary file cannot be parsed or is missing required fields."""
+    """Raised when an input file cannot be parsed or is missing required fields."""
+
+
+# ─── Public entry point ───────────────────────────────────────────────────────
+
+def parse_all(lansmont_folder: Path, summary_path: Path) -> dict:
+    """
+    Parse the full set of ISTA 3B input files and return a flat dict suitable
+    for template substitution and manifest logging.
+
+    Keys from SUMMARY.csv are stored at the top level.
+    Equipment rows produce keys  equip_1_equipment … equip_N_calibration_date.
+    Sequence fields produce keys seq2_result, seq3_drop_height_inches, etc.
+    """
+    parsed = parse_summary(summary_path)
+
+    # Equipment (optional — warn if absent)
+    equip_path = lansmont_folder / "EQUIPMENT.csv"
+    if equip_path.exists():
+        equipment_rows = parse_equipment(equip_path)
+        parsed["_equipment_rows"] = equipment_rows          # structured, for manifest
+        for i, row in enumerate(equipment_rows, start=1):
+            for col in EQUIPMENT_COLUMNS:
+                parsed[f"equip_{i}_{col}"] = row.get(col, "")
+    else:
+        logger.warning("EQUIPMENT.csv not found in %s — equipment table will be blank.", lansmont_folder)
+        parsed["_equipment_rows"] = []
+
+    # Sequence CSVs (optional — warn per missing file)
+    parsed["_sequences"] = {}
+    for stem, prefix in SEQUENCE_MAP.items():
+        seq_path = lansmont_folder / f"{stem}.csv"
+        if seq_path.exists():
+            seq_data = parse_sequence(seq_path, stem)
+            parsed["_sequences"][stem] = seq_data
+            for k, v in seq_data.items():
+                parsed[f"{prefix}_{k}"] = v
+        else:
+            logger.warning("Sequence file %s.csv not found — %s fields will be blank.", stem, prefix)
+
+    logger.info("All available Lansmont files parsed from %s", lansmont_folder)
+    return parsed
 
 
 def parse_summary(summary_path: Path) -> dict:
     """
-    Parse a Lansmont summary file and return a dict mapping field names to values.
+    Parse SUMMARY.csv (two-column key,value format).
     Raises ParseError if any required field is missing or blank.
     Never invents, estimates, or defaults any value.
     """
     ext = summary_path.suffix.lower()
-
     if ext == ".csv":
-        raw = _parse_csv(summary_path)
+        raw = _parse_kv_csv(summary_path)
     elif ext in (".xlsx", ".xls"):
-        raw = _parse_xlsx(summary_path)
+        raw = _parse_kv_xlsx(summary_path)
     elif ext == ".txt":
-        raw = _parse_txt(summary_path)
+        raw = _parse_kv_txt(summary_path)
     else:
         raise ParseError(
-            f"Unsupported summary file format: {ext}. "
-            "Supported: .csv, .xlsx, .xls, .txt"
+            f"Unsupported summary file format: {ext}. Supported: .csv, .xlsx, .xls, .txt"
         )
 
-    # Strip whitespace from all keys and values
-    parsed = {k.strip().lower(): str(v).strip() for k, v in raw.items()}
+    parsed = {k.strip().lower(): str(v).strip() for k, v in raw.items() if k.strip()}
 
-    # Verify required fields
-    missing = EXPECTED_FIELDS - set(parsed.keys())
+    missing = REQUIRED_SUMMARY_FIELDS - set(parsed.keys())
     if missing:
         raise ParseError(
-            f"Summary file is missing required fields: {sorted(missing)}\n"
+            f"SUMMARY file is missing required fields: {sorted(missing)}\n"
             f"File: {summary_path}\n"
             "Do NOT guess missing values. Add them to the source file."
         )
 
-    # Verify no required field is blank
-    blank = [f for f in EXPECTED_FIELDS if not parsed.get(f, "").strip()]
+    blank = [f for f in REQUIRED_SUMMARY_FIELDS if not parsed.get(f, "").strip()]
     if blank:
         raise ParseError(
             f"These required fields are present but empty: {sorted(blank)}\n"
@@ -69,28 +118,78 @@ def parse_summary(summary_path: Path) -> dict:
             "Do NOT fill in blank values automatically. Fix the source file."
         )
 
-    # Validate numeric fields
-    _validate_numeric(parsed, "peak_g", summary_path)
-
-    logger.info("Summary parsed successfully from %s", summary_path.name)
-    for field in sorted(EXPECTED_FIELDS):
-        logger.debug("  %s = %s", field, parsed[field])
-
+    logger.info("SUMMARY parsed successfully from %s", summary_path.name)
     return parsed
 
 
-def _parse_csv(path: Path) -> dict:
-    """Parse a two-column key=value CSV (no header row needed, just key,value pairs)."""
+def parse_equipment(equip_path: Path) -> list[dict]:
+    """
+    Parse EQUIPMENT.csv — a tabular CSV with a header row.
+    Returns a list of dicts, one per equipment row.
+    """
+    try:
+        df = pd.read_csv(equip_path, dtype=str)
+    except Exception as e:
+        raise ParseError(f"Failed to read EQUIPMENT.csv at {equip_path}: {e}") from e
+
+    # Normalise column names
+    df.columns = [c.strip().lower() for c in df.columns]
+
+    missing_cols = set(EQUIPMENT_COLUMNS) - set(df.columns)
+    if missing_cols:
+        raise ParseError(
+            f"EQUIPMENT.csv is missing required columns: {sorted(missing_cols)}\n"
+            f"Expected: {EQUIPMENT_COLUMNS}"
+        )
+
+    rows = []
+    for _, row in df.iterrows():
+        entry = {col: str(row[col]).strip() if pd.notna(row[col]) else "" for col in EQUIPMENT_COLUMNS}
+        if any(entry.values()):  # skip fully blank rows
+            rows.append(entry)
+
+    if not rows:
+        raise ParseError(f"EQUIPMENT.csv has no data rows: {equip_path}")
+
+    logger.info("Equipment parsed: %d instrument(s) from %s", len(rows), equip_path.name)
+    return rows
+
+
+def parse_sequence(seq_path: Path, stem: str) -> dict:
+    """
+    Parse a per-sequence CSV (two-column key,value format).
+    Returns a flat dict of field → value.
+    """
+    try:
+        raw = _parse_kv_csv(seq_path)
+    except Exception as e:
+        raise ParseError(f"Failed to read sequence file {seq_path}: {e}") from e
+
+    data = {k.strip().lower(): str(v).strip() for k, v in raw.items() if k.strip()}
+
+    if "result" not in data:
+        raise ParseError(
+            f"Sequence file {seq_path.name} is missing required field 'result'.\n"
+            "Every sequence must have a Pass/Fail result. Fix the source file."
+        )
+    if not data.get("result", "").strip():
+        raise ParseError(
+            f"Sequence file {seq_path.name} has a blank 'result' field.\n"
+            "Do NOT leave the result empty. Fix the source file."
+        )
+
+    logger.info("Sequence %s parsed: %d field(s)", stem, len(data))
+    return data
+
+
+# ─── Private CSV/XLSX/TXT readers ────────────────────────────────────────────
+
+def _parse_kv_csv(path: Path) -> dict:
+    """Read a two-column key,value CSV (no header row)."""
     try:
         df = pd.read_csv(path, header=None, names=["key", "value"], dtype=str)
     except Exception as e:
         raise ParseError(f"Failed to read CSV file {path}: {e}") from e
-
-    if df.shape[1] < 2:
-        raise ParseError(
-            f"CSV file {path} does not appear to have key,value columns. "
-            "Expected two columns: field_name, value."
-        )
 
     result = {}
     for _, row in df.iterrows():
@@ -101,8 +200,8 @@ def _parse_csv(path: Path) -> dict:
     return result
 
 
-def _parse_xlsx(path: Path) -> dict:
-    """Parse a two-column key/value Excel file."""
+def _parse_kv_xlsx(path: Path) -> dict:
+    """Read a two-column key/value Excel file."""
     try:
         df = pd.read_excel(path, header=None, names=["key", "value"], dtype=str)
     except Exception as e:
@@ -117,8 +216,8 @@ def _parse_xlsx(path: Path) -> dict:
     return result
 
 
-def _parse_txt(path: Path) -> dict:
-    """Parse a key: value or key=value plain text file."""
+def _parse_kv_txt(path: Path) -> dict:
+    """Read a key: value or key=value plain text file."""
     result = {}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -136,15 +235,3 @@ def _parse_txt(path: Path) -> dict:
                 break
 
     return result
-
-
-def _validate_numeric(parsed: dict, field: str, path: Path) -> None:
-    value = parsed.get(field, "")
-    try:
-        float(value)
-    except ValueError:
-        raise ParseError(
-            f"Field '{field}' must be a number, got: '{value}'\n"
-            f"File: {path}\n"
-            "Fix the value in the source file. Do NOT estimate it."
-        )
