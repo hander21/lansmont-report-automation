@@ -22,8 +22,8 @@
       align-items: center;
       gap: 14px;
     }
-    header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.02em; }
-    header .badge {
+    header h1 { font-size: 1.2rem; font-weight: 600; }
+    .badge {
       background: #e74c3c;
       color: #fff;
       font-size: 0.7rem;
@@ -34,12 +34,12 @@
     }
 
     main {
-      max-width: 860px;
-      margin: 36px auto;
+      max-width: 780px;
+      margin: 40px auto;
       padding: 0 16px;
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 22px;
     }
 
     .card {
@@ -51,135 +51,158 @@
     .card h2 {
       font-size: 1rem;
       font-weight: 600;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
       padding-bottom: 12px;
       border-bottom: 1px solid #eee;
-      color: #1a1a2e;
     }
 
-    .field { margin-bottom: 16px; }
-    label {
-      display: block;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #555;
-      margin-bottom: 5px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+    /* Drop zone */
+    #drop-zone {
+      border: 2px dashed #c0c8d8;
+      border-radius: 8px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
     }
-    input[type="text"] {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1px solid #d0d5dd;
-      border-radius: 6px;
-      font-size: 0.93rem;
-      font-family: "Consolas", "Courier New", monospace;
-      color: #1a1a2e;
-      transition: border-color .15s;
-    }
-    input[type="text"]:focus {
-      outline: none;
+    #drop-zone:hover, #drop-zone.dragover {
       border-color: #3b7dd8;
-      box-shadow: 0 0 0 3px rgba(59,125,216,.15);
+      background: #f0f5ff;
     }
-    .hint {
-      font-size: 0.78rem;
-      color: #888;
-      margin-top: 4px;
+    #drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    #drop-zone .icon { font-size: 2.4rem; margin-bottom: 10px; }
+    #drop-zone .label { font-size: 1rem; font-weight: 600; color: #3b7dd8; margin-bottom: 4px; }
+    #drop-zone .sub { font-size: 0.82rem; color: #888; }
+
+    #file-selected {
+      display: none;
+      margin-top: 14px;
+      background: #f0f5ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      color: #1d4ed8;
+      font-weight: 500;
     }
 
-    .btn-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
-    button {
-      padding: 9px 22px;
-      border: none;
+    /* ZIP structure hint */
+    .zip-hint {
+      margin-top: 16px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
       border-radius: 6px;
-      font-size: 0.9rem;
+      padding: 12px 16px;
+      font-size: 0.8rem;
+      color: #555;
+      line-height: 1.7;
+    }
+    .zip-hint strong { color: #1a1a2e; display: block; margin-bottom: 4px; }
+    .zip-hint code {
+      font-family: "Consolas", monospace;
+      background: #eee;
+      padding: 0 3px;
+      border-radius: 3px;
+    }
+
+    /* Generate button */
+    #btn-generate {
+      width: 100%;
+      padding: 13px;
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: opacity .15s, transform .1s;
+      margin-top: 18px;
+      transition: opacity .15s;
     }
-    button:active { transform: scale(.97); }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-
-    #btn-validate { background: #eef2ff; color: #3b5bdb; }
-    #btn-validate:hover:not(:disabled) { background: #dde4ff; }
-    #btn-generate { background: #1a1a2e; color: #fff; }
     #btn-generate:hover:not(:disabled) { background: #2c2c4e; }
+    #btn-generate:disabled { opacity: .45; cursor: not-allowed; }
 
-    /* Status area */
-    #status-area { display: none; }
+    /* Progress */
+    #progress-area { display: none; }
+    .progress-bar-wrap {
+      background: #e5e7eb;
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .progress-bar {
+      height: 100%;
+      background: #3b7dd8;
+      border-radius: 99px;
+      animation: indeterminate 1.4s infinite linear;
+      width: 40%;
+    }
+    @keyframes indeterminate {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+    .progress-label { font-size: 0.85rem; color: #555; text-align: center; }
 
+    /* Status */
     .status-box {
       border-radius: 8px;
-      padding: 16px 20px;
+      padding: 14px 18px;
       font-size: 0.9rem;
       line-height: 1.6;
     }
-    .status-box.info    { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
-    .status-box.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
     .status-box.error   { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
     .status-box.warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    #status-area { display: none; }
 
-    .status-title { font-weight: 700; margin-bottom: 6px; font-size: 0.95rem; }
-
-    /* Field preview table */
-    #field-preview { display: none; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
-    th { font-weight: 600; color: #666; font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em; background: #fafafa; }
-    td:first-child { color: #555; font-weight: 500; width: 38%; }
-    td:last-child { font-family: "Consolas", "Courier New", monospace; color: #1a1a2e; }
-
-    /* Result card */
+    /* Result */
     #result-area { display: none; }
-    .result-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-    .meta-item { background: #f8f9fa; border-radius: 6px; padding: 12px 14px; }
-    .meta-item .meta-label { font-size: 0.75rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-    .meta-item .meta-value { font-size: 0.95rem; font-weight: 600; color: #1a1a2e; margin-top: 2px; }
+    .result-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .meta-item { background: #f8f9fa; border-radius: 6px; padding: 11px 14px; }
+    .meta-label { font-size: 0.72rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .meta-value { font-size: 0.95rem; font-weight: 600; color: #1a1a2e; margin-top: 2px; }
 
-    .download-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .dl-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
     .dl-btn {
-      display: inline-flex;
+      display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 6px;
-      padding: 9px 18px;
-      border-radius: 6px;
-      font-size: 0.88rem;
-      font-weight: 600;
+      gap: 5px;
+      padding: 14px 10px;
+      border-radius: 7px;
       text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-align: center;
       cursor: pointer;
+      border: none;
     }
-    .dl-btn.docx { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
-    .dl-btn.json { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-    .dl-btn:hover { filter: brightness(.95); }
+    .dl-btn .dl-icon { font-size: 1.5rem; }
+    .dl-btn.docx { background: #dbeafe; color: #1d4ed8; }
+    .dl-btn.json { background: #fef3c7; color: #92400e; }
+    .dl-btn.zip  { background: #f0fdf4; color: #15803d; }
+    .dl-btn:hover { filter: brightness(.93); }
 
-    .path-display {
-      font-family: "Consolas", monospace;
-      font-size: 0.78rem;
-      color: #666;
-      background: #f3f4f6;
-      border-radius: 4px;
-      padding: 6px 10px;
-      word-break: break-all;
-      margin-top: 14px;
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid currentColor;
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Field table */
+    #field-preview { display: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+    th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+    th { font-weight: 600; color: #666; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; background: #fafafa; }
+    td:first-child { color: #555; width: 38%; }
+    td:last-child { font-family: "Consolas", monospace; }
 
     .confidentiality-notice {
       font-size: 0.78rem;
@@ -202,51 +225,48 @@
 
 <main>
 
-  <!-- Input form -->
+  <!-- Upload card -->
   <div class="card">
-    <h2>1. Set Paths</h2>
+    <h2>1. Upload Test Folder ZIP</h2>
 
-    <div class="field">
-      <label for="input_folder">Test Input Folder</label>
-      <input type="text" id="input_folder" value="{{ default_input }}"
-             placeholder="C:\Users\You\OneDrive\Incoming Tests\Customer_A_SAMPLE-123" />
-      <p class="hint">Folder containing Lansmont/, Photos/, and Notes/ subfolders.</p>
+    <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".zip" />
+      <div class="icon">📁</div>
+      <div class="label">Click to choose a ZIP file</div>
+      <div class="sub">or drag and drop it here</div>
     </div>
 
-    <div class="field">
-      <label for="output_folder">Output Folder</label>
-      <input type="text" id="output_folder" value="{{ default_output }}"
-             placeholder="C:\Users\You\OneDrive\Packaging Test Reports" />
-      <p class="hint">Root folder where organized reports are saved (e.g. your synced OneDrive path).</p>
+    <div id="file-selected"></div>
+
+    <div class="zip-hint">
+      <strong>Your ZIP must contain this folder structure:</strong>
+      <code>Lansmont/SUMMARY.csv</code> &nbsp;·&nbsp;
+      <code>Lansmont/CHART_*.png</code> &nbsp;·&nbsp;
+      <code>Photos/Pre-Test/PRE_*.jpg</code> &nbsp;·&nbsp;
+      <code>Photos/Post-Test/POST_*.jpg</code>
     </div>
 
-    <div class="field">
-      <label for="template_path">Report Template (.docx)</label>
-      <input type="text" id="template_path" value="{{ default_template }}"
-             placeholder="templates/fake_report_template.docx" />
-      <p class="hint">Path to the Word template file.</p>
-    </div>
-
-    <div class="btn-row">
-      <button id="btn-validate" onclick="runValidate()">Validate Inputs</button>
-      <button id="btn-generate" onclick="runGenerate()" disabled>Generate DRAFT Report</button>
-    </div>
+    <button id="btn-generate" disabled onclick="runGenerate()">
+      Generate DRAFT Report
+    </button>
   </div>
 
-  <!-- Validation status -->
-  <div id="status-area" class="card">
-    <h2>2. Validation</h2>
-    <div id="status-box" class="status-box info">
-      <div class="status-title" id="status-title">Checking…</div>
-      <div id="status-body"></div>
-    </div>
+  <!-- Progress -->
+  <div id="progress-area" class="card">
+    <div class="progress-bar-wrap"><div class="progress-bar"></div></div>
+    <div class="progress-label" id="progress-label">Processing…</div>
   </div>
 
-  <!-- Parsed field preview -->
+  <!-- Error / warning -->
+  <div id="status-area">
+    <div class="status-box" id="status-box"></div>
+  </div>
+
+  <!-- Parsed fields -->
   <div id="field-preview" class="card">
     <h2>Parsed Test Values</h2>
-    <p style="font-size:.82rem;color:#888;margin-bottom:14px;">
-      These values were read directly from your source file. Nothing was guessed or estimated.
+    <p style="font-size:.8rem;color:#888;margin-bottom:12px;">
+      Read directly from your source file — nothing was guessed or estimated.
     </p>
     <table>
       <thead><tr><th>Field</th><th>Value</th></tr></thead>
@@ -254,15 +274,23 @@
     </table>
   </div>
 
-  <!-- Result -->
+  <!-- Result / downloads -->
   <div id="result-area" class="card">
-    <h2>3. Generated Report</h2>
+    <h2>2. Download Results</h2>
     <div class="result-meta" id="result-meta"></div>
-    <div class="download-row" id="download-row"></div>
-    <div class="path-display" id="output-path"></div>
+    <div class="dl-grid">
+      <a class="dl-btn docx" href="/api/download/docx" download>
+        <span class="dl-icon">📄</span>DRAFT Report<br><small>.docx</small>
+      </a>
+      <a class="dl-btn json" href="/api/download/manifest" download>
+        <span class="dl-icon">🗒️</span>Audit Trail<br><small>manifest.json</small>
+      </a>
+      <a class="dl-btn zip" href="/api/download/zip" download>
+        <span class="dl-icon">📦</span>Organized Folder<br><small>.zip</small>
+      </a>
+    </div>
   </div>
 
-  <!-- Confidentiality notice -->
   <div class="confidentiality-notice">
     <strong>Confidentiality:</strong> This tool runs entirely on your local machine.
     No files, test data, customer names, or photos are sent to any server or AI service.
@@ -273,128 +301,119 @@
 </main>
 
 <script>
-  let lastValidated = false;
+  const fileInput = document.getElementById("file-input");
+  const dropZone  = document.getElementById("drop-zone");
+  const fileLabel = document.getElementById("file-selected");
+  const btnGen    = document.getElementById("btn-generate");
 
-  function getPaths() {
-    return {
-      input_folder:  document.getElementById("input_folder").value.trim(),
-      output_folder: document.getElementById("output_folder").value.trim(),
-      template_path: document.getElementById("template_path").value.trim(),
-    };
-  }
+  // File picker change
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) setFile(fileInput.files[0]);
+  });
 
-  function showStatus(type, title, body) {
-    const area = document.getElementById("status-area");
-    const box  = document.getElementById("status-box");
-    const t    = document.getElementById("status-title");
-    const b    = document.getElementById("status-body");
-    area.style.display = "block";
-    box.className = "status-box " + type;
-    t.textContent = title;
-    b.innerHTML = body;
-  }
+  // Drag and drop
+  dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    const f = e.dataTransfer.files[0];
+    if (f && f.name.toLowerCase().endsWith(".zip")) setFile(f);
+    else showError("Please drop a .zip file.");
+  });
 
-  function showFields(fields) {
-    const preview = document.getElementById("field-preview");
-    const tbody   = document.getElementById("fields-tbody");
-    const keys = Object.keys(fields).filter(k => fields[k]);
-    if (keys.length === 0) { preview.style.display = "none"; return; }
-    tbody.innerHTML = keys.map(k =>
-      `<tr><td>${k}</td><td>${escHtml(fields[k])}</td></tr>`
-    ).join("");
-    preview.style.display = "block";
-  }
-
-  function hideResult() {
+  function setFile(f) {
+    fileLabel.style.display = "block";
+    fileLabel.textContent = "Selected: " + f.name + " (" + (f.size / 1024).toFixed(0) + " KB)";
+    btnGen.disabled = false;
+    hideStatus();
     document.getElementById("result-area").style.display = "none";
     document.getElementById("field-preview").style.display = "none";
   }
 
-  async function runValidate() {
-    lastValidated = false;
-    document.getElementById("btn-generate").disabled = true;
-    hideResult();
-    showStatus("info", '<span class="spinner"></span> Validating…', "");
-
-    const res = await fetch("/api/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(getPaths()),
-    });
-    const data = await res.json();
-
-    if (data.ok) {
-      let body = "";
-      if (data.warnings.length > 0) {
-        body = "<ul>" + data.warnings.map(w => `<li>${escHtml(w)}</li>`).join("") + "</ul>";
-        showStatus("warning", "Validation passed with warnings", body);
-      } else {
-        showStatus("success", "All checks passed — ready to generate", "");
-      }
-      showFields(data.fields);
-      document.getElementById("btn-generate").disabled = false;
-      lastValidated = true;
-    } else {
-      const body = "<ul>" + data.errors.map(e =>
-        `<li>${escHtml(e)}</li>`).join("") + "</ul>";
-      showStatus("error", `Validation failed (${data.errors.length} error${data.errors.length>1?"s":""})`, body);
-      document.getElementById("field-preview").style.display = "none";
-    }
-  }
-
   async function runGenerate() {
-    if (!lastValidated) { await runValidate(); if (!lastValidated) return; }
-    document.getElementById("btn-generate").disabled = true;
-    showStatus("info", '<span class="spinner"></span> Generating DRAFT report…', "Please wait.");
+    const f = fileInput.files[0];
+    if (!f) { showError("Please select a ZIP file first."); return; }
 
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(getPaths()),
-    });
-    const data = await res.json();
-    document.getElementById("btn-generate").disabled = false;
+    btnGen.disabled = true;
+    showProgress("Uploading and processing…");
+    hideStatus();
+    document.getElementById("result-area").style.display = "none";
+    document.getElementById("field-preview").style.display = "none";
 
-    if (data.ok) {
-      showStatus("success", "DRAFT report generated successfully", "");
+    const form = new FormData();
+    form.append("file", f);
 
-      // Meta grid
-      const meta = document.getElementById("result-meta");
-      meta.innerHTML = [
-        ["Customer",    data.customer_name],
-        ["Project",     data.project_number],
-        ["Test Date",   data.test_date],
-        ["Test Type",   data.test_type],
-      ].map(([label, val]) => `
-        <div class="meta-item">
-          <div class="meta-label">${label}</div>
-          <div class="meta-value">${escHtml(val||"")}</div>
-        </div>`).join("");
+    try {
+      const res  = await fetch("/api/upload", { method: "POST", body: form });
+      const data = await res.json();
+      hideProgress();
+      btnGen.disabled = false;
 
-      // Download buttons
-      const dl = document.getElementById("download-row");
-      dl.innerHTML = `
-        <a class="dl-btn docx" href="/api/download?path=${encodeURIComponent(data.report)}" download>
-          ⬇ Download DRAFT .docx
-        </a>
-        <a class="dl-btn json" href="/api/download?path=${encodeURIComponent(data.manifest)}" download>
-          ⬇ Download manifest.json
-        </a>`;
+      if (data.ok) {
+        // Show parsed fields
+        if (data.fields && Object.keys(data.fields).length) {
+          showFields(data.fields);
+        }
+        // Show result meta + download buttons
+        const meta = document.getElementById("result-meta");
+        meta.innerHTML = [
+          ["Customer",  data.customer_name],
+          ["Project",   data.project_number],
+          ["Test Date", data.test_date],
+          ["Test Type", data.test_type],
+        ].map(([l,v]) => `<div class="meta-item"><div class="meta-label">${l}</div><div class="meta-value">${esc(v||"")}</div></div>`).join("");
+        document.getElementById("result-area").style.display = "block";
 
-      document.getElementById("output-path").textContent = "Saved to: " + data.output_folder;
-      document.getElementById("result-area").style.display = "block";
-
-      if (data.warnings.length > 0) {
-        showStatus("warning", "Report generated with warnings",
-          "<ul>" + data.warnings.map(w=>`<li>${escHtml(w)}</li>`).join("") + "</ul>");
+        if (data.warnings && data.warnings.length) {
+          showWarning("Generated with warnings:<br><ul style='margin-top:6px;padding-left:18px'>" +
+            data.warnings.map(w=>`<li>${esc(w)}</li>`).join("") + "</ul>");
+        }
+      } else {
+        showError(data.error || "An unknown error occurred.");
       }
-    } else {
-      showStatus("error", "Report generation failed", escHtml(data.error || "Unknown error"));
+    } catch (err) {
+      hideProgress();
+      btnGen.disabled = false;
+      showError("Could not reach the local server. Is py -m ui.app still running?");
     }
   }
 
-  function escHtml(str) {
-    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  function showFields(fields) {
+    const tbody = document.getElementById("fields-tbody");
+    tbody.innerHTML = Object.entries(fields)
+      .filter(([,v]) => v)
+      .map(([k,v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`)
+      .join("");
+    document.getElementById("field-preview").style.display = "block";
+  }
+
+  function showProgress(msg) {
+    document.getElementById("progress-area").style.display = "block";
+    document.getElementById("progress-label").textContent = msg;
+  }
+  function hideProgress() {
+    document.getElementById("progress-area").style.display = "none";
+  }
+  function showError(msg) {
+    const area = document.getElementById("status-area");
+    const box  = document.getElementById("status-box");
+    area.style.display = "block";
+    box.className = "status-box error";
+    box.innerHTML = "<strong>Error:</strong> " + msg;
+  }
+  function showWarning(msg) {
+    const area = document.getElementById("status-area");
+    const box  = document.getElementById("status-box");
+    area.style.display = "block";
+    box.className = "status-box warning";
+    box.innerHTML = "<strong>Warning:</strong> " + msg;
+  }
+  function hideStatus() {
+    document.getElementById("status-area").style.display = "none";
+  }
+  function esc(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   }
 </script>
 </body>
