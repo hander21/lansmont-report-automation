@@ -1,8 +1,9 @@
 """
 Generates a draft Word report from the template using table-cell token replacement.
 
-Text tokens   {{ field_name }}   are replaced with parsed values.
-Image tokens  [[ PHOTO:slot ]]   and  [[ CHART:slot ]]  are replaced with images.
+Text tokens   {{ field_name }}        are replaced with parsed values.
+Image tokens  [IMG: slot_name]        are replaced with photos.
+Chart tokens  [CHART: slot_name]      are replaced with chart images.
 """
 
 import logging
@@ -18,7 +19,7 @@ from src.utils import sanitize_for_filename
 logger = logging.getLogger(__name__)
 
 _TEXT_TOKEN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
-_IMAGE_TOKEN = re.compile(r"\[\[\s*(PHOTO|CHART):(\S+?)\s*\]\]")
+_IMAGE_TOKEN = re.compile(r"\[(IMG|CHART):\s*(\S+?)\s*\]")
 
 
 def build_template_context(parsed: dict, cfg: dict) -> dict:
@@ -30,47 +31,36 @@ def build_template_context(parsed: dict, cfg: dict) -> dict:
 
 def _build_image_map(discovered: dict, output_paths: dict, cfg: dict) -> dict:
     """
-    Map slot names (lower-case, no separators) to resolved image Paths.
+    Map slot names to resolved image Paths.
 
-    Photo slots:  pre_test_1, pre_test_2, accel_1, accel_2, post_test_1, post_test_2
-                  seq2_1, seq2_2, seq3_1, seq3_2, seq4_1, seq4_2, seq6_1, seq6_2, seq7_1, seq7_2
-    Chart slots:  seq2_tip_over, seq3_rot_drop_1_a, seq3_rot_drop_1_b, …, seq5_vibration
+    Photo slots:  pre_1..pre_7, accel_1..accel_2, seq2_1..seq2_8,
+                  seq3_1..seq3_4, seq4_1..seq4_4, seq6_1..seq6_4,
+                  seq7_1..seq7_4, post_1..post_10
+    Chart slots:  derived from filename via _chart_slot_name()
     """
     image_map: dict[str, Path] = {}
 
-    # ── Pre-test photos ──
-    pre_photos = sorted(output_paths["photos_pre"].glob("*")) if output_paths["photos_pre"].exists() else []
-    for i, p in enumerate(pre_photos, start=1):
-        image_map[f"pre_test_{i}"] = p
-
-    # ── Post-test photos ──
-    post_photos = sorted(output_paths["photos_post"].glob("*")) if output_paths["photos_post"].exists() else []
-    for i, p in enumerate(post_photos, start=1):
-        image_map[f"post_test_{i}"] = p
-
-    # ── Accelerometer photos ──
-    accel_dir = output_paths.get("photos_accel")
-    if accel_dir and accel_dir.exists():
-        for i, p in enumerate(sorted(accel_dir.glob("*")), start=1):
-            image_map[f"accel_{i}"] = p
-
-    # ── Sequence photos ──
-    seq_dirs = {
-        "seq2": output_paths.get("photos_seq2"),
-        "seq3": output_paths.get("photos_seq3"),
-        "seq4": output_paths.get("photos_seq4"),
-        "seq6": output_paths.get("photos_seq6"),
-        "seq7": output_paths.get("photos_seq7"),
-    }
-    for prefix, d in seq_dirs.items():
-        if d and d.exists():
-            for i, p in enumerate(sorted(d.glob("*")), start=1):
+    # ── Photo folders → slot prefix ──
+    photo_dirs = [
+        ("photos_pre", "pre"),
+        ("photos_accel", "accel"),
+        ("photos_seq2", "seq2"),
+        ("photos_seq3", "seq3"),
+        ("photos_seq4", "seq4"),
+        ("photos_seq6", "seq6"),
+        ("photos_seq7", "seq7"),
+        ("photos_post", "post"),
+    ]
+    for key, prefix in photo_dirs:
+        d = output_paths.get(key)
+        if d and Path(d).exists():
+            for i, p in enumerate(sorted(Path(d).glob("*")), start=1):
                 image_map[f"{prefix}_{i}"] = p
 
     # ── Charts ──
     charts_dir = output_paths.get("charts")
-    if charts_dir and charts_dir.exists():
-        for chart_path in sorted(charts_dir.glob("*")):
+    if charts_dir and Path(charts_dir).exists():
+        for chart_path in sorted(Path(charts_dir).glob("*")):
             slot = _chart_slot_name(chart_path.name)
             if slot:
                 image_map[slot] = chart_path
@@ -99,9 +89,9 @@ def _replace_text_in_cell(cell, ctx: dict) -> list[str]:
         new_text = full_text
         for match in _TEXT_TOKEN.finditer(full_text):
             field = match.group(1)
-            if field in ctx:
-                new_text = new_text.replace(match.group(0), str(ctx[field]))
-                replaced.append(field)
+            value = ctx.get(field, "")
+            new_text = new_text.replace(match.group(0), str(value))
+            replaced.append(field)
         if new_text != full_text:
             for i, run in enumerate(para.runs):
                 run.text = new_text if i == 0 else ""
@@ -110,12 +100,12 @@ def _replace_text_in_cell(cell, ctx: dict) -> list[str]:
 
 def _replace_image_in_cell(cell, image_map: dict, chart_cfg: dict, photo_cfg: dict) -> dict | None:
     """
-    If a cell contains [[ PHOTO:slot ]] or [[ CHART:slot ]], replace with the image.
+    If a cell contains [IMG: slot] or [CHART: slot], replace with the image.
     Returns an info dict if an image was inserted, else None.
     """
     for para in cell.paragraphs:
         full_text = "".join(r.text for r in para.runs)
-        if "[[" not in full_text:
+        if "[IMG:" not in full_text and "[CHART:" not in full_text:
             continue
         m = _IMAGE_TOKEN.search(full_text)
         if not m:
@@ -124,7 +114,7 @@ def _replace_image_in_cell(cell, image_map: dict, chart_cfg: dict, photo_cfg: di
         image_path = image_map.get(slot)
 
         if not image_path or not image_path.exists():
-            logger.warning("Image slot '%s:%s' has no matching file.", kind, slot)
+            logger.warning("Image slot [%s: %s] has no matching file.", kind, slot)
             return None
 
         is_chart = kind == "CHART"

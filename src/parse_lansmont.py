@@ -185,16 +185,21 @@ def parse_sequence(seq_path: Path, stem: str) -> dict:
 # ─── Private CSV/XLSX/TXT readers ────────────────────────────────────────────
 
 def _parse_kv_csv(path: Path) -> dict:
-    """Read a two-column key,value CSV (no header row)."""
+    """Read a two-column key,value CSV (no header row). Values may contain commas."""
+    import csv
+
     try:
-        df = pd.read_csv(path, header=None, names=["key", "value"], dtype=str)
+        with open(path, newline="", encoding="utf-8-sig") as fh:
+            rows = list(csv.reader(fh))
     except Exception as e:
         raise ParseError(f"Failed to read CSV file {path}: {e}") from e
 
     result = {}
-    for _, row in df.iterrows():
-        key = str(row["key"]).strip()
-        value = str(row["value"]).strip() if pd.notna(row["value"]) else ""
+    for cols in rows:
+        if not cols:
+            continue
+        key = cols[0].strip()
+        value = ",".join(cols[1:]).strip() if len(cols) > 1 else ""
         if key and key.lower() != "nan":
             result[key] = value
     return result

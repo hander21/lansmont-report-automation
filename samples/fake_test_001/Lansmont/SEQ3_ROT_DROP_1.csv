@@ -1,6 +1,8 @@
-drop_height_inches,24
-weight_lbs,12.5
-drop_orientations,Bottom - End - Side
-num_drops,10
+test1_orientation,Edge 3-6
+test1_drop_height_in,9
+test1_peak_g,8.03 (Z)
+test2_orientation,Corner 3-4-5
+test2_drop_height_in,9
+test2_peak_g,1.35 (Z)
 result,Pass
-notes,Minor corner crush on outer carton only; no product damage observed.
+conclusion_notes,No critical damage or conditions were observed post rotational edge drop and rotational corner drop.

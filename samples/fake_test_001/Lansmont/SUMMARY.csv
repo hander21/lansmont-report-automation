@@ -4,10 +4,11 @@ test_date,2026-06-22
 test_type,ISTA 3B
 test_standard,ISTA 3B-2021 (Fake Sample Data)
 product_name,Demo Product Sample
-packaging_description,Demo packaging sample - double-wall corrugated box with EPE foam inserts
-weight_lbs,12.5
-dimensions_lwh,18 x 12 x 10 inches
-quantity,6
-key_takeaways,Package performed within acceptable limits for all test sequences. No product damage was observed during any sequence.
+packaging_description,Demo packaging - corrugated sleeve, top cap, and wood pallet
+weight_lbs,185
+dimensions_lwh,48 x 40 x 72 inches
+quantity,1
+vibration_grms,0.54
+key_takeaways,No critical damage was observed to the packaging system following completion of testing. Customer performed post-test functional validation of the system after testing. Post-test functional validation results were reported by the customer to confirm system performance (PASS).
 conclusion,All test sequences resulted in PASS. Package design meets ISTA 3B-2021 requirements for the stated distribution environment.
 technician_notes,Sample ran without anomalies. All equipment was within calibration dates at time of testing.

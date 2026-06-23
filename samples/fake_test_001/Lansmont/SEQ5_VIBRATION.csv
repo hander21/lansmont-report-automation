@@ -1,6 +1,8 @@
-duration_minutes,60
-psd_profile,ISTA 3B Vibration Profile (Sample)
-peak_g,0.54
-frequency_range_hz,3 - 200
+orientation,Face 3 Bottom
+frequency_range,1 - 200 Hz
+vibration_intensity_grms,0.542
+duration_min,240
+resonant_frequency_z,9.75 Hz
+transmissibility_q_z,4.67
 result,Pass
-notes,Package remained intact throughout vibration sequence. No movement or shifting observed.
+conclusion_notes,No critical damage or conditions were observed post random vibration testing.

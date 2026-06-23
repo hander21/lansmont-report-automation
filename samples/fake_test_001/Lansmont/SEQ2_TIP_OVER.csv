@@ -1,6 +1,10 @@
-height_inches,42
-weight_lbs,12.5
-orientation,Top
-num_drops,3
+test1_orientation,Edge 2-3
+test1_angle,22
+test2_orientation,Edge 3-4
+test2_angle,22
+test3_orientation,Edge 3-5
+test3_angle,22
+test4_orientation,Edge 3-6
+test4_angle,22
 result,Pass
-notes,No damage observed after tip-over sequence.
+conclusion_notes,No critical damage or conditions were observed post tip/tip over test.

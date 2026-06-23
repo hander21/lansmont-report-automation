@@ -94,7 +94,7 @@ class TestReportGeneration:
         parsed = pipeline["parsed"]
         assert "seq2_result" in parsed
         assert parsed["seq2_result"] == "Pass"
-        assert "seq5_peak_g" in parsed
+        assert "seq5_vibration_intensity_grms" in parsed
 
     def test_parsed_has_equipment_rows(self, pipeline):
         parsed = pipeline["parsed"]

@@ -22,7 +22,7 @@ class TestParseSummary:
         assert result["test_date"] == "2026-06-22"
         assert result["test_type"] == "ISTA 3B"
         assert result["product_name"] == "Demo Product Sample"
-        assert result["weight_lbs"] == "12.5"
+        assert result["weight_lbs"] == "185"
 
     def test_all_required_fields_present(self):
         result = parse_summary(FAKE_SUMMARY)
@@ -118,8 +118,8 @@ class TestParseSequence:
     def test_parses_seq2_tip_over(self):
         data = parse_sequence(FAKE_SEQ2, "SEQ2_TIP_OVER")
         assert data["result"] == "Pass"
-        assert data["height_inches"] == "42"
-        assert data["num_drops"] == "3"
+        assert data["test1_orientation"] == "Edge 2-3"
+        assert data["test1_angle"] == "22"
 
     def test_fails_if_result_missing(self, tmp_path):
         csv = tmp_path / "SEQ2_TIP_OVER.csv"
@@ -150,8 +150,8 @@ class TestParseAll:
         result = parse_all(LANSMONT_DIR, FAKE_SUMMARY)
         assert "seq2_result" in result
         assert result["seq2_result"] == "Pass"
-        assert "seq5_peak_g" in result
-        assert result["seq5_peak_g"] == "0.54"
+        assert "seq5_vibration_intensity_grms" in result
+        assert result["seq5_vibration_intensity_grms"] == "0.542"
 
     def test_parse_all_stores_private_equipment_rows(self):
         result = parse_all(LANSMONT_DIR, FAKE_SUMMARY)

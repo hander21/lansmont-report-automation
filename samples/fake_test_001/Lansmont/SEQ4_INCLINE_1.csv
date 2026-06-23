@@ -1,6 +1,8 @@
-incline_angle_degrees,10
-weight_lbs,12.5
-impact_velocity_fps,6.2
-num_impacts,2
+test1_face,Face 5
+test1_velocity,1 m/sec
+test1_peak_g,16.93 (Z)
+test2_face,Face 6
+test2_velocity,1 m/sec
+test2_peak_g,15.21 (Z)
 result,Pass
-notes,No structural damage or product damage observed.
+conclusion_notes,No critical damage or conditions were observed post incline impacts.
