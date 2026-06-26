@@ -65,15 +65,16 @@ class TestValidateInputFolder:
         with pytest.raises(ValidationError, match="[Cc]hart"):
             validate_input_folder(tmp_path, cfg)
 
-    def test_fails_if_no_pre_photos(self, cfg, tmp_path):
+    def test_no_pre_photos_produces_warning_not_error(self, cfg, tmp_path):
+        """Photos are optional — no photos should warn, not hard-fail."""
         lansmont = tmp_path / "Lansmont"
         lansmont.mkdir()
         (lansmont / "SUMMARY.csv").write_text("customer_name,Test\n")
         (lansmont / "CHART_VIB.png").write_bytes(b"\x89PNG\r\n")
-        (tmp_path / "Photos" / "Pre-Test").mkdir(parents=True)
-        (tmp_path / "Photos" / "Post-Test").mkdir(parents=True)
-        with pytest.raises(ValidationError, match="[Pp]re.Test|[Pp]re.test"):
-            validate_input_folder(tmp_path, cfg)
+        # No Photos folder at all — should succeed with warnings
+        discovered = validate_input_folder(tmp_path, cfg)
+        assert len(discovered["pre_test_photos"]) == 0
+        assert any("pre" in w for w in discovered["warnings"])
 
     def test_summary_file_is_pathlib_path(self, cfg):
         discovered = validate_input_folder(SAMPLE_FOLDER, cfg)
@@ -84,21 +85,17 @@ class TestValidateInputFolder:
         for c in discovered["charts"]:
             assert isinstance(c, Path)
 
-    def test_missing_optional_seq_folder_produces_warning_not_error(self, cfg, tmp_path):
-        """Missing sequence photo folders should warn, not hard-fail."""
+    def test_missing_photos_produce_warnings_not_errors(self, cfg, tmp_path):
+        """All photos are optional — missing photos warn, never hard-fail."""
         lansmont = tmp_path / "Lansmont"
         lansmont.mkdir()
         (lansmont / "SUMMARY.csv").write_text("customer_name,Test\n")
         (lansmont / "CHART_VIB.png").write_bytes(b"\x89PNG\r\n")
-        pre = tmp_path / "Photos" / "Pre-Test"
-        pre.mkdir(parents=True)
-        (pre / "PRE_test.jpg").write_bytes(b"JFIF")
-        post = tmp_path / "Photos" / "Post-Test"
-        post.mkdir(parents=True)
-        (post / "POST_test.jpg").write_bytes(b"JFIF")
-        # Should NOT raise — missing Seq folders are warnings only
+        # No photos at all — should succeed with warnings for every bucket
         discovered = validate_input_folder(tmp_path, cfg)
-        assert any("Seq" in w or "optional" in w.lower() for w in discovered["warnings"])
+        assert discovered["pre_test_photos"] == []
+        assert discovered["post_test_photos"] == []
+        assert len(discovered["warnings"]) >= 1
 
 
 class TestValidateTemplate:

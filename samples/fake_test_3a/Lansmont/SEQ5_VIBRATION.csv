@@ -1,0 +1,8 @@
+result,Pass
+orientation,Z Axis (vertical)
+frequency_range,3–100 Hz
+vibration_intensity_grms,0.38
+duration_min,60
+resonant_frequency_z,22 Hz
+transmissibility_q_z,3.4
+conclusion_notes,No resonance amplification above 3.0 Q observed.

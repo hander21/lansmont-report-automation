@@ -68,34 +68,26 @@ def run(argv=None) -> int:
         return 1
 
     input_folder = args.input or Path(cfg["input_folder"])
-    template_path = Path(cfg["template_path"])
 
     logger.info("Input folder : %s", input_folder.resolve())
-    logger.info("Template     : %s", template_path.resolve())
     logger.info("Output base  : %s", cfg['output_folder'])
 
-    # Step 1: Validate template
-    try:
-        validate_template(template_path)
-    except ValidationError as e:
-        logger.error("TEMPLATE ERROR: %s", e)
-        return 1
-
-    # Step 2: Validate input folder structure
+    # Step 1: Validate input folder (flexible scan — any folder structure accepted)
     try:
         discovered = validate_input_folder(input_folder, cfg)
     except ValidationError as e:
         logger.error("INPUT VALIDATION FAILED:\n%s", e)
         return 1
 
-    # Step 3: Parse all input data (summary + equipment + sequences)
+    # Step 2: Parse all input data (summary + equipment + sequences)
     if not discovered.get("summary_file"):
         logger.error("No summary file was discovered. Cannot continue.")
         return 1
 
     try:
-        lansmont_folder = discovered.get("lansmont_folder") or (input_folder / "Lansmont")
-        parsed = parse_all(lansmont_folder, discovered["summary_file"])
+        # Use the folder that contains the summary file as the data root
+        data_folder = discovered["summary_file"].parent
+        parsed = parse_all(data_folder, discovered["summary_file"])
     except ParseError as e:
         logger.error("PARSE ERROR: %s", e)
         return 1
@@ -114,6 +106,25 @@ def run(argv=None) -> int:
         parsed["project_number"],
         parsed["test_date"],
     )
+
+    # Step 4b: Select template based on test standard (3A vs 3B)
+    std = (parsed.get("test_standard", "") + " " + parsed.get("test_type", "")).upper()
+    if "3A" in std:
+        template_path = Path(cfg.get("ista3a_template_path", cfg["template_path"]))
+        logger.info("Test standard detected as ISTA 3A — using 3A template")
+    else:
+        template_path = Path(cfg.get("ista3b_template_path", cfg["template_path"]))
+        logger.info("Test standard detected as ISTA 3B — using 3B template")
+
+    cfg["template_path"] = str(template_path)
+
+    try:
+        validate_template(template_path)
+    except ValidationError as e:
+        logger.error("TEMPLATE ERROR: %s", e)
+        return 1
+
+    logger.info("Template     : %s", template_path.resolve())
 
     # Step 5: Organize files into output structure
     output_paths = build_output_structure(parsed, cfg)

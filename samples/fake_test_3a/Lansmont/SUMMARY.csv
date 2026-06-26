@@ -1,0 +1,13 @@
+customer_name,Customer_B
+project_number,SAMPLE-456
+test_date,2026-06-22
+test_type,ISTA 3A
+test_standard,ISTA 3A-2017
+product_name,Demo Small Product
+packaging_description,Demo corrugated box with foam inserts
+weight_lbs,15
+dimensions_lwh,14x10x8
+quantity,1
+conclusion,Pass
+key_takeaways,Package passed all ISTA 3A sequences with no damage observed.
+technician_notes,All tests performed under ambient lab conditions.

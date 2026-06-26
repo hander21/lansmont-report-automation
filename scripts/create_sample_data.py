@@ -938,6 +938,357 @@ def build_template(out_path: Path):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ISTA 3A template
+# ══════════════════════════════════════════════════════════════════════════════
+
+# 3A uses #CC0000 for ALL section headers (matches uploaded TransPak 3A form).
+RED_3A = "CC0000"
+
+
+def build_3a_template(out_path: Path):
+    """
+    Build an ISTA 3A report template matching the TransPak 3A form exactly.
+    Colors: #CC0000 section headers (white text), same logo/footer as 3B.
+    Sections: cover, TOC, objective, std refs, test sample desc,
+              climatic conditioning, drop tests, vibration, conclusion, photos.
+    """
+    doc = Document()
+    for sec in doc.sections:
+        sec.top_margin      = Inches(1.5)
+        sec.bottom_margin   = Inches(0.75)
+        sec.left_margin     = Inches(1.0)
+        sec.right_margin    = Inches(1.0)
+        sec.header_distance = Inches(0.25)
+
+    _setup_header_footer(doc, LOGO)
+
+    # ── Cover ──
+    # Title bar (red, matching form)
+    cov = doc.add_table(rows=1, cols=1)
+    cov.style = "Table Grid"
+    _set_cell_bg(cov.rows[0].cells[0], RED_3A)
+    _cell_para(cov.rows[0].cells[0],
+               "ISTA TEST PROCEDURE  3A (2017)\n{{ packaging_description }}",
+               bold=True, size=12, color=WHITE_TXT)
+
+    # Cover fields
+    for label, token in [
+        ("(INSERT COMPANY NAME/LOGO HERE)", ""),
+        ("TYPE OF PACKAGE:", "{{ packaging_description }}"),
+        ("PURCHASE ORDER #:", "{{ project_number }}"),
+        ("TEST REPORT #:", "{{ project_number }}"),
+    ]:
+        p = doc.add_paragraph()
+        r = p.add_run(label + ("  " + token if token else ""))
+        r.font.name = "Calibri"; r.font.size = Pt(12)
+
+    # Testing performed for
+    perf_for = doc.add_table(rows=1, cols=1)
+    perf_for.style = "Table Grid"
+    _set_cell_bg(perf_for.rows[0].cells[0], RED_3A)
+    _cell_para(perf_for.rows[0].cells[0], "TESTING IS PERFORMED FOR:",
+               bold=True, size=12, color=WHITE_TXT)
+    _body(doc, "{{ customer_name }}")
+    _body(doc, "ATTN: {{ technician_notes }}")
+
+    # Testing performed by
+    perf_by = doc.add_table(rows=1, cols=1)
+    perf_by.style = "Table Grid"
+    _set_cell_bg(perf_by.rows[0].cells[0], RED_3A)
+    _cell_para(perf_by.rows[0].cells[0], "TESTING PERFORMED BY:",
+               bold=True, size=12, color=WHITE_TXT)
+    _body(doc, "TransPak\n20415 Corsair Blvd.\nHayward, CA 94545\nPhone: (877) 883-2525")
+    _body(doc, "Test completed on: {{ test_date }}")
+
+    _page_break(doc)
+
+    # ── TOC ──
+    toc_hdr = doc.add_table(rows=1, cols=1)
+    toc_hdr.style = "Table Grid"
+    _set_cell_bg(toc_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(toc_hdr.rows[0].cells[0], "TABLE OF CONTENTS",
+               bold=True, size=12, color=WHITE_TXT)
+
+    toc_items = [
+        ("Objective",                   3),
+        ("Industry Standard References",3),
+        ("Test Sample Description",     4),
+        ("Test Procedures and Results", 5),
+        ("  Climatic Conditioning",     5),
+        ("  Drop Tests",                6),
+        ("  Vibration",                 7),
+        ("Test Analysis",               8),
+        ("Conclusion",                  8),
+        ("Pre-Test Photos",             9),
+        ("Post-Test Photos",           10),
+        ("Appendix — Charts",          11),
+        ("Disclaimer of Warranties",   12),
+    ]
+    for title, pg in toc_items:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(1)
+        p.paragraph_format.space_after  = Pt(1)
+        r = p.add_run(f"{title} {'.' * (55 - len(title))} {pg}")
+        r.font.name = "Calibri"; r.font.size = Pt(11)
+
+    # ISTA address box
+    doc.add_paragraph()
+    ista_tbl = doc.add_table(rows=2, cols=1)
+    ista_tbl.style = "Table Grid"
+    _set_cell_bg(ista_tbl.rows[0].cells[0], RED_3A)
+    _cell_para(ista_tbl.rows[0].cells[0], "ISTA ADDRESS",
+               bold=True, size=12, color=WHITE_TXT)
+    _cell_para(ista_tbl.rows[1].cells[0],
+               "Note: This report may be submitted to ISTA at the following address:\n"
+               "ISTA\n1400 Abbott Road, Suite 160\nEast Lansing, MI 48823-1900",
+               size=11)
+
+    _page_break(doc)
+
+    # ── Objective ──
+    obj_hdr = doc.add_table(rows=1, cols=1)
+    obj_hdr.style = "Table Grid"
+    _set_cell_bg(obj_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(obj_hdr.rows[0].cells[0], "OBJECTIVE",
+               bold=True, size=12, color=WHITE_TXT)
+    _body(doc,
+          "To conduct ISTA 3A (2017) testing on {{ quantity }} package(s) each containing "
+          "{{ product_name }} in accordance to industry standards.")
+
+    # Industry Standard References
+    widths_ref = [2.0, 1.5, 3.0]
+    ref_tbl = _add_tbl(doc, 3)
+    _tbl_section_hdr(ref_tbl, "INDUSTRY STANDARD REFERENCES", col_widths=widths_ref)
+    for cat, std, desc in [
+        ("General Simulation", "ISTA 3A (2017)",
+         "Procedure for packaged products for parcel delivery system shipment 150 lbs. (70 kg) or less."),
+        ("Climatic Conditioning", "ISTA", "Conditioning"),
+        ("Shock",                 "ISTA", "Drop Testing"),
+        ("Vibration",             "ISTA", "Vibration Testing"),
+    ]:
+        _tbl_data_row(ref_tbl, [cat, std, desc], col_widths=widths_ref)
+
+    _page_break(doc)
+
+    # ── Test Sample Description ──
+    tsd_hdr = doc.add_table(rows=1, cols=1)
+    tsd_hdr.style = "Table Grid"
+    _set_cell_bg(tsd_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(tsd_hdr.rows[0].cells[0], "TEST SAMPLE DESCRIPTION",
+               bold=True, size=12, color=WHITE_TXT)
+
+    widths_desc = [2.5, 1.0, 2.0, 1.0]
+    desc_tbl = _add_tbl(doc, 4)
+    _tbl_col_hdrs(desc_tbl,
+                  ["External Packaging", "Weight (lbs)", "Dimensions (L×W×H)", "Qty"],
+                  col_widths=widths_desc, fill=RED_3A, text_color=WHITE_TXT, size=11)
+    _tbl_data_row(desc_tbl,
+                  ["{{ packaging_description }}", "{{ weight_lbs }}",
+                   "{{ dimensions_lwh }}", "{{ quantity }}"],
+                  col_widths=widths_desc, size=11)
+
+    doc.add_paragraph()
+    photo_tbl = doc.add_table(rows=1, cols=1)
+    photo_tbl.style = "Table Grid"
+    photo_tbl.rows[0].cells[0].width = Inches(6.5)
+    _img_cell(photo_tbl.rows[0].cells[0], "pre_1")
+
+    _page_break(doc)
+
+    # ── Test Procedures and Results ──
+    tpr_hdr = doc.add_table(rows=1, cols=1)
+    tpr_hdr.style = "Table Grid"
+    _set_cell_bg(tpr_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(tpr_hdr.rows[0].cells[0], "TEST PROCEDURES AND RESULTS",
+               bold=True, size=12, color=WHITE_TXT)
+
+    # Climatic Conditioning
+    _heading(doc, "Climatic Conditioning")
+    _body(doc,
+          "Prior to testing, the package system was conditioned at ambient laboratory "
+          "conditions for a minimum of 12 hours.")
+    widths_clim = [3.25, 3.25]
+    clim_tbl = _add_tbl(doc, 2)
+    _tbl_col_hdrs(clim_tbl, ["Condition", "Value"],
+                  col_widths=widths_clim, fill=RED_3A, text_color=WHITE_TXT)
+    for label, token in [
+        ("Temperature", "{{ seq_cond_temperature }}"),
+        ("Relative Humidity", "{{ seq_cond_humidity }}"),
+        ("Duration", "{{ seq_cond_duration }}"),
+        ("Result", "{{ seq_cond_result }}"),
+    ]:
+        _tbl_data_row(clim_tbl, [label, token], col_widths=widths_clim)
+
+    _page_break(doc)
+
+    # Drop Tests
+    _heading(doc, "Drop Tests")
+    _body(doc, "Drop height determined by gross weight bracket per ISTA 3A Table 1.")
+    widths_drop = [0.8, 2.5, 1.6, 1.6]
+    drop_tbl = _add_tbl(doc, 4)
+    _tbl_section_hdr(drop_tbl, "Drop Test Results", col_widths=widths_drop)
+    _tbl_col_hdrs(drop_tbl,
+                  ["Test No.", "Orientation", "Drop Height (in.)", "Result"],
+                  col_widths=widths_drop, size=12)
+    for i in range(1, 7):
+        _tbl_data_row(drop_tbl, [
+            str(i),
+            f"{{{{ drop_test{i}_orientation }}}}",
+            f"{{{{ drop_test{i}_height_in }}}}",
+            f"{{{{ drop_test{i}_result }}}}",
+        ], col_widths=widths_drop)
+
+    # Drop photos (3 pairs)
+    for pair in range(1, 4):
+        slot_a = f"seq3_{(pair-1)*2+1}"
+        slot_b = f"seq3_{(pair-1)*2+2}"
+        ph = doc.add_table(rows=2, cols=2)
+        ph.style = "Table Grid"
+        ph.rows[0].cells[0].width = Inches(3.25)
+        ph.rows[0].cells[1].width = Inches(3.25)
+        _img_cell(ph.rows[0].cells[0], slot_a)
+        _img_cell(ph.rows[0].cells[1], slot_b)
+        _caption_cell(ph.rows[1].cells[0], f"{{{{ drop_test{pair*2-1}_orientation }}}}")
+        _caption_cell(ph.rows[1].cells[1], f"{{{{ drop_test{pair*2}_orientation }}}}")
+
+    _conc_table(doc, "{{ drop_conclusion_notes }}", "{{ drop_result }}")
+
+    _page_break(doc)
+
+    # Vibration
+    _heading(doc, "Vibration")
+    widths_vib = [1.8, 1.7, 1.5, 1.5]
+    vib_tbl = _add_tbl(doc, 4)
+    _tbl_section_hdr(vib_tbl, "Random Vibration", col_widths=widths_vib)
+    _tbl_col_hdrs(vib_tbl,
+                  ["Orientation", "Frequency Range", "Vibration Intensity (Grms)", "Duration (min)"],
+                  col_widths=widths_vib, size=12)
+    _tbl_data_row(vib_tbl, [
+        "{{ seq5_orientation }}",
+        "{{ seq5_frequency_range }}",
+        "{{ seq5_vibration_intensity_grms }}",
+        "{{ seq5_duration_min }}",
+    ], col_widths=widths_vib)
+
+    # Vibration chart
+    vib_hdr = doc.add_table(rows=1, cols=1)
+    vib_hdr.style = "Table Grid"
+    _set_cell_bg(vib_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(vib_hdr.rows[0].cells[0], "Vibration Chart",
+               bold=True, size=12, color=WHITE_TXT)
+    vib_ct = doc.add_table(rows=1, cols=1)
+    vib_ct.style = "Table Grid"
+    _chart_cell(vib_ct.rows[0].cells[0], "seq5_vibration")
+
+    _conc_table(doc, "{{ seq5_conclusion_notes }}", "{{ seq5_result }}")
+
+    _page_break(doc)
+
+    # ── Test Analysis ──
+    ta_hdr = doc.add_table(rows=1, cols=1)
+    ta_hdr.style = "Table Grid"
+    _set_cell_bg(ta_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(ta_hdr.rows[0].cells[0], "TEST ANALYSIS",
+               bold=True, size=12, color=WHITE_TXT)
+    _body(doc, "{{ key_takeaways }}")
+
+    _conc_table(doc, "{{ conclusion }}", "{{ conclusion }}")
+
+    _page_break(doc)
+
+    # ── Pre-Test Photos ──
+    pre_hdr = doc.add_table(rows=1, cols=1)
+    pre_hdr.style = "Table Grid"
+    _set_cell_bg(pre_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(pre_hdr.rows[0].cells[0], "PRE-TEST PHOTOS",
+               bold=True, size=12, color=WHITE_TXT)
+
+    for pair in range(1, 4):
+        ph = doc.add_table(rows=2, cols=2)
+        ph.style = "Table Grid"
+        ph.rows[0].cells[0].width = Inches(3.25)
+        ph.rows[0].cells[1].width = Inches(3.25)
+        _img_cell(ph.rows[0].cells[0], f"pre_{pair*2}")
+        _img_cell(ph.rows[0].cells[1], f"pre_{pair*2+1}")
+        _caption_cell(ph.rows[1].cells[0], "Pre-Test")
+        _caption_cell(ph.rows[1].cells[1], "Pre-Test")
+
+    _page_break(doc)
+
+    # ── Post-Test Photos ──
+    post_hdr = doc.add_table(rows=1, cols=1)
+    post_hdr.style = "Table Grid"
+    _set_cell_bg(post_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(post_hdr.rows[0].cells[0], "POST-TEST PHOTOS",
+               bold=True, size=12, color=WHITE_TXT)
+
+    for pair in range(1, 4):
+        ph = doc.add_table(rows=2, cols=2)
+        ph.style = "Table Grid"
+        ph.rows[0].cells[0].width = Inches(3.25)
+        ph.rows[0].cells[1].width = Inches(3.25)
+        _img_cell(ph.rows[0].cells[0], f"post_{pair*2-1}")
+        _img_cell(ph.rows[0].cells[1], f"post_{pair*2}")
+        _caption_cell(ph.rows[1].cells[0], "Post-Test")
+        _caption_cell(ph.rows[1].cells[1], "Post-Test")
+
+    _page_break(doc)
+
+    # ── Appendix — Charts ──
+    app_hdr = doc.add_table(rows=1, cols=1)
+    app_hdr.style = "Table Grid"
+    _set_cell_bg(app_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(app_hdr.rows[0].cells[0], "APPENDIX — CHARTS",
+               bold=True, size=12, color=WHITE_TXT)
+
+    for label, slot in [
+        ("Drop Test Charts",     "seq3_edge36"),
+        ("Vibration — Grms {{ seq5_vibration_intensity_grms }}", "seq5_vibration"),
+    ]:
+        ch_hdr = doc.add_table(rows=1, cols=1)
+        ch_hdr.style = "Table Grid"
+        _set_cell_bg(ch_hdr.rows[0].cells[0], RED_3A)
+        _cell_para(ch_hdr.rows[0].cells[0], label,
+                   bold=True, size=12, color=WHITE_TXT)
+        ct = doc.add_table(rows=1, cols=1)
+        ct.style = "Table Grid"
+        _chart_cell(ct.rows[0].cells[0], slot)
+        _page_break(doc)
+
+    # ── Disclaimer ──
+    disc_hdr = doc.add_table(rows=1, cols=1)
+    disc_hdr.style = "Table Grid"
+    _set_cell_bg(disc_hdr.rows[0].cells[0], RED_3A)
+    _cell_para(disc_hdr.rows[0].cells[0], "DISCLAIMER OF WARRANTIES",
+               bold=True, size=12, color=WHITE_TXT)
+    _body(doc,
+          "The results and conclusions stated in this report pertain only to the specific "
+          "samples tested. TransPak makes no warranty, expressed or implied, as to the "
+          "ability of packaging to survive actual distribution. This report is prepared "
+          "solely for the use of the client named herein and may not be reproduced or "
+          "distributed without written permission from TransPak.", size=10)
+
+    doc.add_paragraph()
+    end_p = doc.add_paragraph()
+    end_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    end_r = end_p.add_run("End of Report")
+    end_r.italic = True; end_r.font.name = "Calibri"; end_r.font.size = Pt(9)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(out_path))
+    print(f"  3A Template: {out_path.relative_to(ROOT)}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Rename 3B template builder
+# ══════════════════════════════════════════════════════════════════════════════
+
+def build_3b_template(out_path: Path):
+    """Alias — calls the existing build_template() under the new filename."""
+    build_template(out_path)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Main
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1015,9 +1366,102 @@ def main():
         make_photo(path, label)
 
     print("\nBuilding ISTA 3B report template...")
-    build_template(ROOT / "templates" / "fake_report_template.docx")
+    build_3b_template(ROOT / "templates" / "fake_3b_template.docx")
+    # Keep legacy filename for backwards compatibility
+    build_3b_template(ROOT / "templates" / "fake_report_template.docx")
+
+    print("\nBuilding ISTA 3A report template...")
+    build_3a_template(ROOT / "templates" / "fake_3a_template.docx")
+
+    print("\nCreating ISTA 3A sample data folder...")
+    _build_3a_sample_data()
 
     print("\nDone.")
+
+
+def _build_3a_sample_data():
+    """Create fake_test_3a sample folder with 3A-specific CSVs and placeholder images."""
+    root_3a   = ROOT / "samples" / "fake_test_3a"
+    lansmont3 = root_3a / "Lansmont"
+    photos3   = root_3a / "Photos"
+    lansmont3.mkdir(parents=True, exist_ok=True)
+
+    # SUMMARY.csv
+    (lansmont3 / "SUMMARY.csv").write_text(
+        "customer_name,Customer_B\n"
+        "project_number,SAMPLE-456\n"
+        "test_date,2026-06-22\n"
+        "test_type,ISTA 3A\n"
+        "test_standard,ISTA 3A-2017\n"
+        "product_name,Demo Small Product\n"
+        "packaging_description,Demo corrugated box with foam inserts\n"
+        "weight_lbs,15\n"
+        "dimensions_lwh,14x10x8\n"
+        "quantity,1\n"
+        "conclusion,Pass\n"
+        "key_takeaways,Package passed all ISTA 3A sequences with no damage observed.\n"
+        "technician_notes,All tests performed under ambient lab conditions.\n"
+    )
+
+    # EQUIPMENT.csv
+    (lansmont3 / "EQUIPMENT.csv").write_text(
+        "equipment,make,model,serial,calibration_date\n"
+        "Drop Tester,Lansmont,Model-D,SN-DEMO-010,2025-01-01\n"
+        "Vibration Table,Lansmont,Model-V,SN-DEMO-011,2025-01-01\n"
+        "Accelerometer,Endevco,2255B-01,SN-DEMO-012,2025-01-01\n"
+    )
+
+    # SEQ_CONDITIONING.csv
+    (lansmont3 / "SEQ_CONDITIONING.csv").write_text(
+        "result,Pass\n"
+        "temperature,72°F (22°C)\n"
+        "humidity,50% RH\n"
+        "duration,12 hours\n"
+    )
+
+    # SEQ3_ROT_DROP_1.csv — reused for drop tests in 3A
+    (lansmont3 / "SEQ3_ROT_DROP_1.csv").write_text(
+        "result,Pass\n"
+        "test1_orientation,Flat — Bottom\n"
+        "test1_drop_height_in,24\n"
+        "test1_peak_g,42.1\n"
+        "test2_orientation,Edge 1-2\n"
+        "test2_drop_height_in,18\n"
+        "test2_peak_g,38.6\n"
+        "conclusion_notes,No damage observed on any drop orientation.\n"
+    )
+
+    # SEQ5_VIBRATION.csv
+    (lansmont3 / "SEQ5_VIBRATION.csv").write_text(
+        "result,Pass\n"
+        "orientation,Z Axis (vertical)\n"
+        "frequency_range,3–100 Hz\n"
+        "vibration_intensity_grms,0.38\n"
+        "duration_min,60\n"
+        "resonant_frequency_z,22 Hz\n"
+        "transmissibility_q_z,3.4\n"
+        "conclusion_notes,No resonance amplification above 3.0 Q observed.\n"
+    )
+
+    # RAW_DATA_PLACEHOLDER.txt
+    (lansmont3 / "RAW_DATA_PLACEHOLDER.txt").write_text(
+        "SAMPLE PLACEHOLDER — fake raw data for ISTA 3A development only.\n"
+    )
+
+    # Chart placeholder
+    make_chart(lansmont3 / "CHART_SEQ3_EDGE_3_6.png",  "3A Drop Test — Edge")
+    make_chart(lansmont3 / "CHART_SEQ5_VIBRATION.png",  "3A Vibration Grms")
+
+    # Photo placeholders
+    for path, label in [
+        (photos3 / "Pre-Test"  / "PRE_sample_01.jpg",  "Pre-Test 1"),
+        (photos3 / "Pre-Test"  / "PRE_sample_02.jpg",  "Pre-Test 2"),
+        (photos3 / "Post-Test" / "POST_overview_1.jpg", "Post-Test 1"),
+        (photos3 / "Post-Test" / "POST_overview_2.jpg", "Post-Test 2"),
+    ]:
+        make_photo(path, label)
+
+    print(f"  3A sample data: {root_3a.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

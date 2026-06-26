@@ -1,12 +1,18 @@
 input_folder: "samples/fake_test_001"
 output_folder: "output/Packaging Test Reports"
-template_path: "templates/fake_report_template.docx"
+
+# Template paths — selected automatically based on test_standard in SUMMARY.csv
+template_path:       "templates/fake_3b_template.docx"   # fallback default
+ista3b_template_path: "templates/fake_3b_template.docx"
+ista3a_template_path: "templates/fake_3a_template.docx"
 
 required_files:
   summary_data: true
   charts: true
-  pre_test_photos: true
-  post_test_photos: true
+  # Photos are never required — missing slots remain as placeholders for
+  # manual insertion by the engineer in Word after report generation.
+  pre_test_photos: false
+  post_test_photos: false
 
 photo_settings:
   max_width_inches: 3.0
