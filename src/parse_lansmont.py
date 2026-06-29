@@ -22,7 +22,16 @@ REQUIRED_SUMMARY_FIELDS = {
     "conclusion",
 }
 
-OPTIONAL_SUMMARY_FIELDS = {"key_takeaways", "technician_notes"}
+OPTIONAL_SUMMARY_FIELDS = {
+    "key_takeaways",
+    "technician_notes",
+    "operator_1",       # "Name | email@transpak.com"
+    "operator_2",
+    "operator_3",
+    "revision",         # "A", "B", "C", …
+    "test_method",      # e.g. "ISTA 3B-2021" — replaces the method line on the cover
+    "objective",        # Full objective paragraph text (leave blank to keep template default)
+}
 
 # Known sequence file stems → prefix used in flattened keys
 SEQUENCE_MAP = {

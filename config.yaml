@@ -1,16 +1,23 @@
 input_folder: "samples/fake_test_001"
 output_folder: "output/Packaging Test Reports"
 
-# Template paths — selected automatically based on test_standard in SUMMARY.csv
-template_path:       "templates/fake_3b_template.docx"   # fallback default
-ista3b_template_path: "templates/fake_3b_template.docx"
-ista3a_template_path: "templates/fake_3a_template.docx"
+# ── Template paths ─────────────────────────────────────────────────────────────
+# Real TransPak templates — selected automatically from test_standard in SUMMARY.csv.
+# Supported values for test_standard: "ISTA 3B", "ISTA 3A", "ISTA 2A", "Simplified"
+template_path:                  "templates/ISTA_3B_template.docx"   # fallback default
+ista3b_template_path:           "templates/ISTA_3B_template.docx"
+ista3a_template_path:           "templates/ISTA_3A_template.docx"
+ista2a_template_path:           "templates/ISTA_2A_template.docx"
+ista_simplified_template_path:  "templates/ISTA_Simplified_template.docx"
+
+# Development-only fake templates ({{ token }} syntax, used by unit tests):
+fake3b_template_path:  "templates/fake_3b_template.docx"
+fake3a_template_path:  "templates/fake_3a_template.docx"
 
 required_files:
   summary_data: true
   charts: true
-  # Photos are never required — missing slots remain as placeholders for
-  # manual insertion by the engineer in Word after report generation.
+  # Photos are never required — missing slots remain for manual insertion in Word.
   pre_test_photos: false
   post_test_photos: false
 
@@ -26,7 +33,7 @@ report_settings:
   mark_as_draft: true
   export_pdf: false
 
-# Recognized file name patterns (case-insensitive prefix matching)
+# Recognized file name patterns (case-insensitive keyword matching)
 file_patterns:
   summary_prefixes:
     - "SUMMARY"

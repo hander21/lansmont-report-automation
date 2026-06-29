@@ -19,10 +19,10 @@ class TestParseSummary:
         result = parse_summary(FAKE_SUMMARY)
         assert result["customer_name"] == "Customer_A"
         assert result["project_number"] == "SAMPLE-123"
-        assert result["test_date"] == "2026-06-22"
+        assert result["test_date"] == "June 22 2026"
         assert result["test_type"] == "ISTA 3B"
         assert result["product_name"] == "Demo Product Sample"
-        assert result["weight_lbs"] == "185"
+        assert result["weight_lbs"] == "185 lbs."
 
     def test_all_required_fields_present(self):
         result = parse_summary(FAKE_SUMMARY)

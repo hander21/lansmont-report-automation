@@ -1,5 +1,11 @@
 """
-Generates a draft Word report from the template using table-cell token replacement.
+Generates a draft Word report from the template.
+
+For real TransPak templates (ISTA 2A / 3A / 3B / Simplified):
+  Uses fill_template.fill_real_template() — paragraph replacement + table fill.
+
+For development fake templates ({{ token }} based):
+  Uses table-cell token replacement (original approach).
 
 Text tokens   {{ field_name }}        are replaced with parsed values.
 Image tokens  [IMG: slot_name]        are replaced with photos.
@@ -13,6 +19,7 @@ from pathlib import Path
 from docx import Document
 from docx.shared import Inches
 
+from src.fill_template import is_real_template, fill_real_template
 from src.insert_images import get_fit_dimensions
 from src.utils import sanitize_for_filename
 
@@ -145,26 +152,30 @@ def generate_draft_report(
     template_path = Path(cfg["template_path"])
     doc = Document(str(template_path))
 
-    ctx = build_template_context(parsed, cfg)
-    image_map = _build_image_map(discovered, output_paths, cfg)
-
-    chart_cfg = cfg["chart_settings"]
-    photo_cfg = cfg["photo_settings"]
-
     inserted_images: list[dict] = []
     replaced_text_fields: set[str] = set()
 
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                # Try image replacement first
-                result = _replace_image_in_cell(cell, image_map, chart_cfg, photo_cfg)
-                if result:
-                    inserted_images.append(result)
-                    continue
-                # Then text replacement
-                fields = _replace_text_in_cell(cell, ctx)
-                replaced_text_fields.update(fields)
+    if is_real_template(doc):
+        # ── Real TransPak template: paragraph + table fill ──
+        logger.info("Real TransPak template detected — using fill mode.")
+        inserted_images = fill_real_template(doc, parsed, discovered, cfg)
+    else:
+        # ── Development fake template: {{ token }} replacement ──
+        logger.info("Token-based template detected — using token replacement mode.")
+        ctx = build_template_context(parsed, cfg)
+        image_map = _build_image_map(discovered, output_paths, cfg)
+        chart_cfg = cfg["chart_settings"]
+        photo_cfg = cfg["photo_settings"]
+
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    result = _replace_image_in_cell(cell, image_map, chart_cfg, photo_cfg)
+                    if result:
+                        inserted_images.append(result)
+                        continue
+                    fields = _replace_text_in_cell(cell, ctx)
+                    replaced_text_fields.update(fields)
 
     # Build output filename
     customer = sanitize_for_filename(parsed["customer_name"])

@@ -107,11 +107,17 @@ def run(argv=None) -> int:
         parsed["test_date"],
     )
 
-    # Step 4b: Select template based on test standard (3A vs 3B)
+    # Step 4b: Select template based on test standard
     std = (parsed.get("test_standard", "") + " " + parsed.get("test_type", "")).upper()
-    if "3A" in std:
+    if "2A" in std:
+        template_path = Path(cfg.get("ista2a_template_path", cfg["template_path"]))
+        logger.info("Test standard detected as ISTA 2A — using 2A template")
+    elif "3A" in std:
         template_path = Path(cfg.get("ista3a_template_path", cfg["template_path"]))
         logger.info("Test standard detected as ISTA 3A — using 3A template")
+    elif "SIMPLIFIED" in std or "CUSTOM" in std:
+        template_path = Path(cfg.get("ista_simplified_template_path", cfg["template_path"]))
+        logger.info("Test standard detected as Simplified/Custom — using Simplified template")
     else:
         template_path = Path(cfg.get("ista3b_template_path", cfg["template_path"]))
         logger.info("Test standard detected as ISTA 3B — using 3B template")
