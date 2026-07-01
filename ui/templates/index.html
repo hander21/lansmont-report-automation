@@ -160,6 +160,52 @@
       color: #fff;
     }
 
+    /* Metadata form */
+    .meta-form-section {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #eee;
+    }
+    .meta-form-section .section-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .meta-grid .full-width { grid-column: 1 / -1; }
+    .meta-field label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .meta-field input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      color: #1a1a2e;
+      transition: border-color .15s;
+    }
+    .meta-field input:focus {
+      outline: none;
+      border-color: #3b7dd8;
+    }
+    .meta-field input::placeholder { color: #aaa; }
+
     /* Generate button */
     #btn-generate {
       width: 100%;
@@ -316,6 +362,41 @@
       </div>
     </div>
 
+    <!-- Report Metadata -->
+    <div class="meta-form-section">
+      <label class="section-label">3. Report Details</label>
+      <div class="meta-grid">
+        <div class="meta-field">
+          <label for="f-customer">Customer Name</label>
+          <input id="f-customer" name="customer_name" type="text" placeholder="e.g. Acme Corp">
+        </div>
+        <div class="meta-field">
+          <label for="f-project">Project Number</label>
+          <input id="f-project" name="project_number" type="text" placeholder="e.g. TP-2024-001">
+        </div>
+        <div class="meta-field">
+          <label for="f-date">Test Date</label>
+          <input id="f-date" name="test_date" type="text" placeholder="e.g. June 22 2026">
+        </div>
+        <div class="meta-field">
+          <label for="f-revision">Revision</label>
+          <input id="f-revision" name="revision" type="text" placeholder="e.g. A">
+        </div>
+        <div class="meta-field full-width">
+          <label for="f-product">Product Name</label>
+          <input id="f-product" name="product_name" type="text" placeholder="e.g. Industrial Pump Unit">
+        </div>
+        <div class="meta-field">
+          <label for="f-op1">Test Engineer 1</label>
+          <input id="f-op1" name="operator_1" type="text" placeholder="Name | email@company.com">
+        </div>
+        <div class="meta-field">
+          <label for="f-op2">Test Engineer 2</label>
+          <input id="f-op2" name="operator_2" type="text" placeholder="Name | email@company.com">
+        </div>
+      </div>
+    </div>
+
     <button id="btn-generate" disabled onclick="runGenerate()">
       Generate DRAFT Report
     </button>
@@ -417,6 +498,16 @@
     const form = new FormData();
     form.append("file", f);
     form.append("test_type", testType);
+
+    // Metadata form fields
+    const metaFields = [
+      "customer_name", "project_number", "test_date", "revision",
+      "product_name", "operator_1", "operator_2"
+    ];
+    for (const name of metaFields) {
+      const el = document.querySelector(`input[name="${name}"]`);
+      if (el && el.value.trim()) form.append(name, el.value.trim());
+    }
 
     try {
       const res  = await fetch("/api/upload", { method: "POST", body: form });

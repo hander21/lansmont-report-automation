@@ -64,8 +64,13 @@ def upload():
     if not f.filename.lower().endswith(".zip"):
         return jsonify({"ok": False, "error": "Please upload a .zip file."}), 400
 
-    # Test type from UI selector — overrides anything in SUMMARY.csv
+    # Metadata from UI form — overrides / supplements anything in SUMMARY.csv
     ui_test_type = (request.form.get("test_type") or "").strip()
+    _META_FIELDS = [
+        "customer_name", "project_number", "test_date", "revision",
+        "product_name", "operator_1", "operator_2",
+    ]
+    ui_meta = {k: request.form.get(k, "").strip() for k in _META_FIELDS}
 
     # Extract ZIP into a temp folder
     tmp_in = tempfile.mkdtemp(prefix="lansmont_in_")
@@ -98,12 +103,13 @@ def upload():
         )
         parsed = parse_all(lansmont_folder, summary_file)
 
-        # Let UI test-type override (or supply) the parsed value
+        # Inject UI form values — fill blanks and allow override of summary file
+        for key, val in ui_meta.items():
+            if val:
+                parsed[key] = val
         if ui_test_type:
-            parsed.setdefault("test_type", ui_test_type)
+            parsed["test_type"] = ui_test_type
             parsed.setdefault("test_standard", ui_test_type)
-            if parsed.get("test_type") != ui_test_type:
-                parsed["test_type"] = ui_test_type
 
         validate_parsed_fields(parsed)
         output_paths = build_output_structure(parsed, cfg)
