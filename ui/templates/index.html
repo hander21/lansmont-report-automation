@@ -113,6 +113,53 @@
       border-radius: 3px;
     }
 
+    /* Test type selector */
+    .test-type-section {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #eee;
+    }
+    .test-type-section label.section-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .test-type-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .test-type-grid input[type="radio"] { display: none; }
+    .test-type-grid label {
+      display: block;
+      padding: 9px 6px;
+      border: 2px solid #e0e3ea;
+      border-radius: 7px;
+      text-align: center;
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .test-type-grid input[type="radio"]:checked + label {
+      border-color: #1a1a2e;
+      background: #1a1a2e;
+      color: #fff;
+    }
+    .test-type-grid label:hover {
+      border-color: #3b7dd8;
+      color: #3b7dd8;
+    }
+    .test-type-grid input[type="radio"]:checked + label:hover {
+      border-color: #1a1a2e;
+      color: #fff;
+    }
+
     /* Generate button */
     #btn-generate {
       width: 100%;
@@ -227,7 +274,7 @@
 
   <!-- Upload card -->
   <div class="card">
-    <h2>1. Upload Test Folder ZIP</h2>
+    <h2>1. Upload Your ZIP</h2>
 
     <div id="drop-zone" onclick="document.getElementById('file-input').click()">
       <input type="file" id="file-input" accept=".zip" />
@@ -239,11 +286,34 @@
     <div id="file-selected"></div>
 
     <div class="zip-hint">
-      <strong>Your ZIP must contain this folder structure:</strong>
-      <code>Lansmont/SUMMARY.csv</code> &nbsp;·&nbsp;
-      <code>Lansmont/CHART_*.png</code> &nbsp;·&nbsp;
-      <code>Photos/Pre-Test/PRE_*.jpg</code> &nbsp;·&nbsp;
-      <code>Photos/Post-Test/POST_*.jpg</code>
+      <strong>What to put in your ZIP:</strong>
+      Drop in whatever you have — the tool will find it automatically.<br>
+      &nbsp;·&nbsp; Lansmont PDF exports (any name) &nbsp;·&nbsp; Chart PNGs with <code>CHART_</code> in the name<br>
+      &nbsp;·&nbsp; <code>SUMMARY.csv</code> for test metadata &nbsp;·&nbsp; Photos (optional)<br>
+      Missing files just leave blank placeholders in the report — fill them in manually.
+    </div>
+
+    <!-- Test Type Selector -->
+    <div class="test-type-section">
+      <label class="section-label">2. Select Test Standard</label>
+      <div class="test-type-grid">
+        <span>
+          <input type="radio" name="test_type" id="tt-3b" value="ISTA 3B" checked>
+          <label for="tt-3b">ISTA 3B</label>
+        </span>
+        <span>
+          <input type="radio" name="test_type" id="tt-3a" value="ISTA 3A">
+          <label for="tt-3a">ISTA 3A</label>
+        </span>
+        <span>
+          <input type="radio" name="test_type" id="tt-2a" value="ISTA 2A">
+          <label for="tt-2a">ISTA 2A</label>
+        </span>
+        <span>
+          <input type="radio" name="test_type" id="tt-sim" value="Simplified">
+          <label for="tt-sim">Simplified</label>
+        </span>
+      </div>
     </div>
 
     <button id="btn-generate" disabled onclick="runGenerate()">
@@ -341,8 +411,12 @@
     document.getElementById("result-area").style.display = "none";
     document.getElementById("field-preview").style.display = "none";
 
+    const selected = document.querySelector('input[name="test_type"]:checked');
+    const testType = selected ? selected.value : "ISTA 3B";
+
     const form = new FormData();
     form.append("file", f);
+    form.append("test_type", testType);
 
     try {
       const res  = await fetch("/api/upload", { method: "POST", body: form });

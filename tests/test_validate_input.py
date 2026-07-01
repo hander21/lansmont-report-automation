@@ -49,21 +49,21 @@ class TestValidateInputFolder:
         with pytest.raises(ValidationError, match="not a directory"):
             validate_input_folder(f, cfg)
 
-    def test_fails_if_no_summary_file(self, cfg, tmp_path):
+    def test_no_summary_file_produces_warning_not_error(self, cfg, tmp_path):
+        """Missing summary is now a warning — report fields will be blank."""
         (tmp_path / "Lansmont").mkdir()
-        (tmp_path / "Photos" / "Pre-Test").mkdir(parents=True)
-        (tmp_path / "Photos" / "Post-Test").mkdir(parents=True)
-        with pytest.raises(ValidationError, match="summary file"):
-            validate_input_folder(tmp_path, cfg)
+        discovered = validate_input_folder(tmp_path, cfg)
+        assert discovered["summary_file"] is None
+        assert any("summary" in w.lower() for w in discovered["warnings"])
 
-    def test_fails_if_no_charts(self, cfg, tmp_path):
+    def test_no_charts_produces_warning_not_error(self, cfg, tmp_path):
+        """Missing charts are now a warning — slots remain as placeholders."""
         lansmont = tmp_path / "Lansmont"
         lansmont.mkdir()
         (lansmont / "SUMMARY.csv").write_text("customer_name,Test\n")
-        (tmp_path / "Photos" / "Pre-Test").mkdir(parents=True)
-        (tmp_path / "Photos" / "Post-Test").mkdir(parents=True)
-        with pytest.raises(ValidationError, match="[Cc]hart"):
-            validate_input_folder(tmp_path, cfg)
+        discovered = validate_input_folder(tmp_path, cfg)
+        assert discovered["charts"] == []
+        assert any("chart" in w.lower() for w in discovered["warnings"])
 
     def test_no_pre_photos_produces_warning_not_error(self, cfg, tmp_path):
         """Photos are optional — no photos should warn, not hard-fail."""
@@ -118,22 +118,16 @@ class TestValidateParsedFields:
         complete = {f: "some_value" for f in REQUIRED_SUMMARY_FIELDS}
         validate_parsed_fields(complete)  # should not raise
 
-    def test_fails_if_field_missing(self):
+    def test_incomplete_fields_do_not_raise(self):
+        """Missing fields warn, not error — report will have blank placeholders."""
         incomplete = {f: "val" for f in REQUIRED_SUMMARY_FIELDS if f != "conclusion"}
-        with pytest.raises(ValidationError, match="conclusion"):
-            validate_parsed_fields(incomplete)
+        validate_parsed_fields(incomplete)  # should not raise
 
-    def test_fails_if_field_empty_string(self):
+    def test_blank_fields_do_not_raise(self):
+        """Blank fields warn, not error."""
         fields = {f: "val" for f in REQUIRED_SUMMARY_FIELDS}
         fields["customer_name"] = ""
-        with pytest.raises(ValidationError, match="customer_name"):
-            validate_parsed_fields(fields)
-
-    def test_fails_if_field_whitespace_only(self):
-        fields = {f: "val" for f in REQUIRED_SUMMARY_FIELDS}
-        fields["customer_name"] = "   "
-        with pytest.raises(ValidationError, match="customer_name"):
-            validate_parsed_fields(fields)
+        validate_parsed_fields(fields)  # should not raise
 
     def test_required_fields_include_ista3b_fields(self):
         assert "product_name" in REQUIRED_SUMMARY_FIELDS

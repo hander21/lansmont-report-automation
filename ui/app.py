@@ -31,7 +31,14 @@ app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB max upload
 log = logging.getLogger(__name__)
 
 CONFIG_PATH = ROOT / "config.yaml"
-TEMPLATE_PATH = ROOT / "templates" / "fake_report_template.docx"
+
+_TEMPLATE_MAP = {
+    "ISTA 3B":      "ista3b_template_path",
+    "ISTA 3A":      "ista3a_template_path",
+    "ISTA 2A":      "ista2a_template_path",
+    "Simplified":   "ista_simplified_template_path",
+}
+_DEFAULT_TEMPLATE_KEY = "ista3b_template_path"
 
 # Holds last-generated output so download endpoints can serve it
 _last_output: dict = {}
@@ -57,6 +64,9 @@ def upload():
     if not f.filename.lower().endswith(".zip"):
         return jsonify({"ok": False, "error": "Please upload a .zip file."}), 400
 
+    # Test type from UI selector — overrides anything in SUMMARY.csv
+    ui_test_type = (request.form.get("test_type") or "").strip()
+
     # Extract ZIP into a temp folder
     tmp_in = tempfile.mkdtemp(prefix="lansmont_in_")
     tmp_out = tempfile.mkdtemp(prefix="lansmont_out_")
@@ -72,13 +82,26 @@ def upload():
 
     cfg = load_config(CONFIG_PATH)
     cfg["output_folder"] = tmp_out
-    cfg["template_path"] = str(TEMPLATE_PATH)
+
+    # Pick template based on UI test-type selector
+    template_cfg_key = _TEMPLATE_MAP.get(ui_test_type, _DEFAULT_TEMPLATE_KEY)
+    template_path = ROOT / cfg.get(template_cfg_key, cfg.get("template_path", ""))
+
+    cfg["template_path"] = str(template_path)
 
     try:
-        validate_template(TEMPLATE_PATH)
+        validate_template(template_path)
         discovered = validate_input_folder(input_folder, cfg)
-        lansmont_folder = discovered.get("lansmont_folder") or (input_folder / "Lansmont")
+        lansmont_folder = discovered.get("lansmont_folder") or input_folder
         parsed = parse_all(lansmont_folder, discovered["summary_file"])
+
+        # Let UI test-type override (or supply) the parsed value
+        if ui_test_type:
+            parsed.setdefault("test_type", ui_test_type)
+            parsed.setdefault("test_standard", ui_test_type)
+            if parsed.get("test_type") != ui_test_type:
+                parsed["test_type"] = ui_test_type
+
         validate_parsed_fields(parsed)
         output_paths = build_output_structure(parsed, cfg)
         copied = copy_files(discovered, output_paths)

@@ -52,7 +52,7 @@ class ParseError(Exception):
 
 # ─── Public entry point ───────────────────────────────────────────────────────
 
-def parse_all(lansmont_folder: Path, summary_path: Path) -> dict:
+def parse_all(lansmont_folder: Path, summary_path: "Path | None") -> dict:
     """
     Parse the full set of ISTA 3B input files and return a flat dict suitable
     for template substitution and manifest logging.
@@ -60,8 +60,14 @@ def parse_all(lansmont_folder: Path, summary_path: Path) -> dict:
     Keys from SUMMARY.csv are stored at the top level.
     Equipment rows produce keys  equip_1_equipment … equip_N_calibration_date.
     Sequence fields produce keys seq2_result, seq3_drop_height_inches, etc.
+
+    summary_path may be None — all summary fields will be blank in that case.
     """
-    parsed = parse_summary(summary_path)
+    if summary_path is None:
+        logger.warning("No summary file — report fields will be blank.")
+        parsed: dict = {}
+    else:
+        parsed = parse_summary(summary_path)
 
     # Equipment (optional — warn if absent)
     equip_path = lansmont_folder / "EQUIPMENT.csv"
