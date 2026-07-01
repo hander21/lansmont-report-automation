@@ -19,10 +19,10 @@ def build_output_structure(parsed: dict, cfg: dict) -> dict:
     Returns a dict of named output sub-folder Paths (all created).
     """
     base = Path(cfg["output_folder"])
-    customer = sanitize_for_filename(parsed["customer_name"])
-    project = sanitize_for_filename(parsed["project_number"])
-    test_date = sanitize_for_filename(parsed["test_date"])
-    test_type = sanitize_for_filename(parsed["test_type"])
+    customer = sanitize_for_filename(parsed.get("customer_name") or "Unknown_Customer")
+    project = sanitize_for_filename(parsed.get("project_number") or "Unknown_Project")
+    test_date = sanitize_for_filename(parsed.get("test_date") or "Unknown_Date")
+    test_type = sanitize_for_filename(parsed.get("test_type") or "Unknown_Test")
 
     report_folder = base / customer / project / f"{test_date} - {test_type}"
     photos_root = report_folder / "Photos"

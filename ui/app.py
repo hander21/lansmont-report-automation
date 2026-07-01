@@ -92,8 +92,11 @@ def upload():
     try:
         validate_template(template_path)
         discovered = validate_input_folder(input_folder, cfg)
-        lansmont_folder = discovered.get("lansmont_folder") or input_folder
-        parsed = parse_all(lansmont_folder, discovered["summary_file"])
+        summary_file = discovered.get("summary_file")
+        lansmont_folder = discovered.get("lansmont_folder") or (
+            summary_file.parent if summary_file else input_folder
+        )
+        parsed = parse_all(lansmont_folder, summary_file)
 
         # Let UI test-type override (or supply) the parsed value
         if ui_test_type:

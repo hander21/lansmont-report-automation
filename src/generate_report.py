@@ -178,10 +178,10 @@ def generate_draft_report(
                     replaced_text_fields.update(fields)
 
     # Build output filename
-    customer = sanitize_for_filename(parsed["customer_name"])
-    project = sanitize_for_filename(parsed["project_number"])
-    date = sanitize_for_filename(parsed["test_date"])
-    test_type = sanitize_for_filename(parsed["test_type"])
+    customer = sanitize_for_filename(parsed.get("customer_name") or "Unknown_Customer")
+    project = sanitize_for_filename(parsed.get("project_number") or "Unknown_Project")
+    date = sanitize_for_filename(parsed.get("test_date") or "Unknown_Date")
+    test_type = sanitize_for_filename(parsed.get("test_type") or "Unknown_Test")
     filename = f"DRAFT_{customer}_{project}_{test_type}_{date}.docx"
     output_file = output_paths["final_report"] / filename
 

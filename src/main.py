@@ -80,31 +80,23 @@ def run(argv=None) -> int:
         return 1
 
     # Step 2: Parse all input data (summary + equipment + sequences)
-    if not discovered.get("summary_file"):
-        logger.error("No summary file was discovered. Cannot continue.")
-        return 1
-
     try:
-        # Use the folder that contains the summary file as the data root
-        data_folder = discovered["summary_file"].parent
-        parsed = parse_all(data_folder, discovered["summary_file"])
+        summary_file = discovered.get("summary_file")
+        data_folder = summary_file.parent if summary_file else input_folder
+        parsed = parse_all(data_folder, summary_file)
     except ParseError as e:
         logger.error("PARSE ERROR: %s", e)
         return 1
 
-    # Step 4: Validate that all required fields are present in parsed data
-    try:
-        validate_parsed_fields(parsed)
-    except ValidationError as e:
-        logger.error("FIELD VALIDATION FAILED: %s", e)
-        return 1
+    # Step 3: Warn (do not stop) if required fields are missing
+    validate_parsed_fields(parsed)
 
     logger.info(
         "Test: %s | Customer: %s | Project: %s | Date: %s",
-        parsed["test_type"],
-        parsed["customer_name"],
-        parsed["project_number"],
-        parsed["test_date"],
+        parsed.get("test_type", "(unknown)"),
+        parsed.get("customer_name", "(unknown)"),
+        parsed.get("project_number", "(unknown)"),
+        parsed.get("test_date", "(unknown)"),
     )
 
     # Step 4b: Select template based on test standard
